@@ -14,7 +14,7 @@ STARTUP_FILE = stm32f10x_md
 HSE_VALUE = 12000000UL
 
 # Enable debug compilation
-DEBUG = 1
+#DEBUG = 1
 
 # [OPTIONAL] Set the serial details for bootloading
 STM32LDR_PORT = /dev/rfcomm3
@@ -43,7 +43,7 @@ INCLUDE_DIRS = -I . -I lib/STM32F10x_StdPeriph_Driver/inc\
 LIBRARY_DIRS = -L lib/STM32F10x_StdPeriph_Driver/\
  -L lib/STM32_USB-FS-Device_Driver
 
-DEFINES = -D$(DEVICE_TYPE) -DHSE_Value=$(HSE_VALUE) -DCRT#-DSYSCLK_FREQ_72MHz=72000000
+DEFINES = -D$(DEVICE_TYPE) -DHSE_Value=$(HSE_VALUE) -DCRT -DBOARD=2
 
 COMPILE_OPTS = $(WARNINGS) $(TARGET_OPTS) $(MESSAGES) $(INCLUDE_DIRS) $(DEFINES)
 WARNINGS = -Wall -W -Wshadow -Wcast-qual -Wwrite-strings -Winline
@@ -53,7 +53,7 @@ ifdef DEBUG
  DEBUG_MACRO = -DDEBUG
 else	#Changed from O2 - optimisation split between control loop and rest of project, using a seperate makefile
  TARGET_OPTS = $(OPTIMISE) -finline -finline-functions-called-once\
-  -funroll-loops -fno-common -fpromote-loop-indices -fno-rtti -fno-exceptions
+  -funroll-loops -fno-common -fpromote-loop-indices -fno-rtti -fno-exceptions -ffunction-sections -fdata-sections
 endif
 
 CC = arm-none-eabi-gcc

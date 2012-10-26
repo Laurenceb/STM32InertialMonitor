@@ -9,7 +9,7 @@
 #define _USE_IOCTL	1	/* 1: Use disk_ioctl fucntion */
 
 #include "integer.h"
-
+#include "stm32f10x.h"
 
 /* Status of Disk Functions */
 typedef BYTE	DSTATUS;
@@ -30,13 +30,23 @@ typedef enum {
 int assign_drives (int, int);
 DSTATUS disk_initialize (BYTE);
 DSTATUS disk_status (BYTE);
-DRESULT disk_read (BYTE, BYTE*, DWORD, BYTE);
+DRESULT disk_read (BYTE, volatile BYTE*, DWORD, BYTE);
 #if	_READONLY == 0
 DRESULT disk_write (BYTE, const BYTE*, DWORD, BYTE);
 #endif
 DRESULT disk_ioctl (BYTE, BYTE, void*);
 
-
+void wrapup_transaction(void);		/*Laurence added for spi timing improvements*/
+void stop_cmd(void);
+static BYTE send_cmd (
+	BYTE cmd,		/* Command byte */
+	DWORD arg		/* Argument */
+);
+void release_spi (void);
+//BOOL rcvr_datablock (
+//	volatile BYTE * buff,		/* Data buffer to store received data */
+//	UINT btr			/* Byte count (must be multiple of 4) */
+//);
 
 /* Disk Status Bits (DSTATUS) */
 
@@ -89,5 +99,14 @@ DRESULT disk_ioctl (BYTE, BYTE, void*);
 RAMFUNC void disk_timerproc (void);
 
 /* Martin Thomas end */
+
+//Macro added by Laurence
+#if BOARD>=3
+	#define DMA_Channel_SPI_SD_RX DMA1_Channel4
+#else
+	#define DMA_Channel_SPI_SD_RX DMA1_Channel2
+#endif
+extern volatile BYTE Sd_Spi_Called_From_USB_MSC;
+//End Laurence
 #define _DISKIO
 #endif

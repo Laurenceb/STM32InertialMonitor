@@ -20,19 +20,14 @@
 #define CHRG_ON		GPIO_WriteBit(GPIOB,CHARGER_EN,Bit_SET)
 #define CHRG_OFF	GPIO_WriteBit(GPIOB,CHARGER_EN,Bit_RESET)
 
-#define PWM0		GPIO_Pin_8
-#define PWM1		GPIO_Pin_10
-#define PWM2		GPIO_Pin_9
-#define PWM_MOTOR	GPIO_Pin_8
-
-#define SOLENOID	GPIO_Pin_13
-#define SET_SOLENOID(s)	GPIO_WriteBit(GPIOB,SOLENOID,(BitAction)s)
 
 #define GET_PWR_STATE	GPIO_ReadInputDataBit(GPIOA,WKUP)
 
-//I2C1 on pins 8 and 9 - configured in i2c_int.h
+//I2C1 on pins 6 and 7 or 8 and 9 - configured in i2c_int.h
 #define I2C1_SCL	GPIO_Pin_6
 #define I2C1_SDA	GPIO_Pin_7
+#define I2C1_SCL_RE	GPIO_Pin_8
+#define I2C1_SDA_RE	GPIO_Pin_9
 
 extern uint8_t bootsource;
 

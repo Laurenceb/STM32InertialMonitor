@@ -3,15 +3,14 @@
 #include "i2c_int.h"
 #include "gpio.h"
 #include "Util/delay.h"
+#include "Sensors/amb_sensors.h"
 
 //Globals for the driver
 volatile uint32_t Jobs,Completed_Jobs;	//used for task control (only ever access this from outside for polling Jobs/Reading Completed_Jobs)
 volatile uint8_t job;			//stores the current job
 volatile I2C_Error_Type I2C1error;	//stores current error status
 
-//Setup the const jobs descriptors
-const uint8_t TMP102_setup[]=TMP102_SETUP;
-volatile I2C_Job_Type I2C_jobs[]=I2C_JOBS_INITIALISER;//sets up the const jobs
+//extern I2C_Job_Type* I2C_jobs;
 
 /**
   * @brief  This function handles I2C1 Event interrupt request.
@@ -130,7 +129,11 @@ void I2C1_EV_IRQHandler(void) {
 	}
 	if((I2C_jobs[job].bytes+1)==index) {//we have completed the current job
 		//Completion Tasks go here
-
+		if(job==SFE_1_GYRO) {
+			Jobs|=SECOND_BUS_READS;
+			//while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear
+			Remap();//this is very bodgey, but should remap at this points to talk to the other bus
+		}
 		//End of completion tasks
 		Jobs&=~(0x00000001<<job);//tick off current job as complete
 		Completed_Jobs|=(0x00000001<<job);//These can be polled by other tasks to see if a job has been completed or is scheduled 
@@ -142,8 +145,11 @@ void I2C1_EV_IRQHandler(void) {
 			while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear
 			I2C_GenerateSTART(I2C1,ENABLE);//program the Start to kick start the new transfer
 		}
-		else if(final_stop)	//If there is a final stop and no more jobs, bus is inactive, disable interrupts to prevent BTF
+		else if(final_stop) {	//If there is a final stop and no more jobs, bus is inactive, disable interrupts to prevent BTF
 			I2C_ITConfig(I2C1, I2C_IT_EVT|I2C_IT_ERR, DISABLE);//Disable EVT and ERR interrupts while bus inactive
+			//while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear to correct second bus state
+			Unremap();	//This will mark the end of the reads
+		}
 	}
 }
 
@@ -219,7 +225,7 @@ void I2C1_Setup_Job(uint8_t job_, volatile uint8_t* data) {
 }
 
 /**
-  * @brief  Configures the I2C1 interface
+  * @brief  Configures the I2C1 interface on both default and remapped pins
   * @param  None
   * @retval None
   */
@@ -235,39 +241,37 @@ void I2C_Config() {			//Configure I2C1 for the sensor bus
 	I2C_InitStructure.I2C_OwnAddress1 = 0xAD;//0xAM --> ADAM
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
 	I2C_InitStructure.I2C_AcknowledgedAddress= I2C_AcknowledgedAddress_7bit;
-	I2C_InitStructure.I2C_ClockSpeed = 100000;
-	//Setup the pointers to the read data
-	I2C1_Setup_Job(TMP102_READ, (volatile uint8_t*)&TMP102_Data_Buffer);//Temperature data buffer
+	I2C_InitStructure.I2C_ClockSpeed = 80000;
 	//Assert the bus
 	GPIO_InitTypeDef	GPIO_InitStructure;
-	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA;
+	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init( GPIOB, &GPIO_InitStructure );//Configure the pins as output open drain so we can clk them as GPIO
-	GPIO_SetBits(GPIOB,I2C1_SDA|I2C1_SCL);//Set bus high
+	GPIO_SetBits(GPIOB,I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE);//Set bus high
 	//Make sure the bus is free by clocking it until any slaves release the line - 8 clocks
 	for(uint8_t n=0;n<8;n++) {
         	/* Wait for any clock stretching to finish - this has a timeout of 2.55ms*/
 		uint8_t count=255;
-        	while (!GPIO_ReadInputDataBit(GPIOB,I2C1_SCL)&&count) {
+        	while (!GPIO_ReadInputDataBit(GPIOB,I2C1_SCL|I2C1_SCL_RE)&&count) {
 		        Delay(10);
 			count--;
 		}
 		/* Pull low */
-		GPIO_ResetBits(GPIOB,I2C1_SCL);//Set bus low
+		GPIO_ResetBits(GPIOB,I2C1_SCL|I2C1_SCL_RE);//Set bus low
 		Delay(10);
 		/* Release high again */
-		GPIO_SetBits(GPIOB,I2C1_SCL);//Set bus high
+		GPIO_SetBits(GPIOB,I2C1_SCL|I2C1_SCL_RE);//Set bus high
 		Delay(10);
 	}
 	/* Generate a start then stop condition */
-	GPIO_ResetBits(GPIOB,I2C1_SDA);//Set bus data low
+	GPIO_ResetBits(GPIOB,I2C1_SDA|I2C1_SDA_RE);//Set bus data low
 	Delay(10);
- 	GPIO_ResetBits(GPIOB,I2C1_SCL);//Set bus scl low
+ 	GPIO_ResetBits(GPIOB,I2C1_SCL|I2C1_SCL_RE);//Set bus scl low
 	Delay(10);
- 	GPIO_SetBits(GPIOB,I2C1_SCL);//Set bus scl high
+ 	GPIO_SetBits(GPIOB,I2C1_SCL|I2C1_SCL_RE);//Set bus scl high
 	Delay(10);
- 	GPIO_SetBits(GPIOB,I2C1_SDA);//Set bus sda high
+ 	GPIO_SetBits(GPIOB,I2C1_SDA|I2C1_SDA_RE);//Set bus sda high
 	//Configure the hardware as alt function
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
 	GPIO_Init( GPIOB, &GPIO_InitStructure );

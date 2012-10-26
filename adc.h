@@ -1,5 +1,5 @@
 #include "stm32f10x.h"
-#include "Sensors/ppg.h"
+
 
 #define CRT_PPG_ADC_CHAN 8	/* 4 is also possible - second PPG channel PORTB0,PORTA4 */
 #define SECOND_ADC_CHAN 4
@@ -9,6 +9,8 @@
 
 #define SAMPLING_FACTOR	4096.0/6.6/* 1/2 factor pot divider on the frontend board */
 #define MINIMUM_VOLTAGE 3.0	/* A single lithium polymer cell*/
+
+#define GET_BATTERY_VOLTAGE (float)readADC2(BATTERY_ADC_CHAN)/(SAMPLING_FACTOR)/* Macro to return battery voltage as a float using blocking regular conv*/
 
 extern volatile uint16_t * ADC1_Convertion_buff;//malloc this
 

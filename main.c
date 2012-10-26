@@ -5,12 +5,10 @@
 #include "gpio.h"
 #include "usart.h"
 #include "interrupts.h"
-#include "timer.h"
 #include "watchdog.h"
 #include "Util/rprintf.h"
 #include "Util/delay.h"
-#include "Sensors/pressure.h"
-#include "Sensors/ppg.h"
+#include "Sensors/amb_sensors.h"
 #include "usb_lib.h"
 #include "Util/USB/hw_config.h"
 #include "Util/USB/usb_pwr.h"
@@ -24,16 +22,14 @@ extern uint16_t MAL_Init (uint8_t lun);			//For the USB filesystem driver
 volatile uint8_t file_opened=0;				//So we know to close any opened files before turning off
 uint8_t print_string[256];				//For printf data
 UINT a;							//File bytes counter
-volatile buff_type Buff[PPG_CHANNELS];			//Shared with ISR
-volatile uint8_t Pressure_control;			//Enables the pressure control PI
-volatile float Pressure_Setpoint;			//Target differential pressure for the pump
 volatile uint32_t Millis;				//System uptime (rollover after 50 days)
-volatile float Device_Temperature;			//Die temperature sensor converted to centigrade
 volatile uint8_t System_state_Global;			//Stores the system state, controlled by the button, most significant bit is a flag
 volatile uint8_t Sensors;				//Global holding a mask of the sensors found by automatic sensor discovery
+uint8_t Sensor_Cable;					//ID for the attached cable
+volatile float battery_voltage;				//Used to flush the adc
 //Sensor buffers to pass data back to logger
-volatile buff_type Temperatures_Buffer;			//Data from temperature sensor
-volatile buff_type Pressures_Buffer;
+volatile Sparkfun_9DOF_buff sfe_sensor_buffers[2];	//Data from sparkfun sensors
+volatile Forehead_sensor_buff forehead_buffer;		//Data from forehead sensors
 //FatFs filesystem globals go here
 FRESULT f_err_code;
 static FATFS FATFS_Obj;
@@ -43,9 +39,9 @@ FILINFO FATFS_info;
 
 int main(void)
 {
-	uint32_t ppg[2];				//two PPG channels
 	uint32_t data_counter=0;			//used as data timestamp
-	float sensor_data;				//used for handling data passed back from sensors
+	uint8_t deadly_flashes=0,system_state=0;
+	int16_t sensor_data;				//used for handling data passed back from sensors
 	RTC_t RTC_time;
 	SystemInit();					//Sets up the clk
 	setup_gpio();					//Initialised pins, and detects boot source
@@ -66,12 +62,12 @@ int main(void)
 		Set_USBClock();
 		USB_Interrupts_Config();
 		USB_Init();
-		uint16_t nojack=0xFFFF;			//Countdown timer - a few ms of 0v on jack detect forces a shutdown
+		uint32_t nojack=0x000FFFFF;		//Countdown timer - a few hundered ms of 0v on jack detect forces a shutdown
 		while (bDeviceState != CONFIGURED) {	//Wait for USB config - timeout causes shutdown
 			if(Millis>10000 || !nojack)	//No USB cable - shutdown (Charger pin will be set to open drain, cant be disabled without usb)
 				shutdown();
 			if(GET_CHRG_STATE)		//Jack detect resets the countdown
-				nojack=0xFFFF;
+				nojack=0x0FFFFF;
 			nojack--;
 			Watchdog_Reset();		//Reset watchdog here, if we are stalled here the Millis timeout should catch us
 		}
@@ -107,12 +103,17 @@ int main(void)
 				}
 				f_close(&FATFS_logfile);//Close the time.txt file
 			}
-			if((f_err_code=f_open(&FATFS_logfile,"logfile.txt",FA_CREATE_ALWAYS | FA_WRITE))) {//Present
+			rtc_gettime(&RTC_time);				//Get the RTC time and put a timestamp on the start of the file
+			rprintfInit(__str_print_char);			//Print to the string
+			printf("%d-%d-%dT%d-%d-%d.txt",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);//timestamp name
+			rprintfInit(__usart_send_char);			//Printf over the bluetooth
+			if((f_err_code=f_open(&FATFS_logfile,print_string,FA_CREATE_ALWAYS | FA_WRITE))) {//Present
 				printf("FatFs drive error %d\r\n",f_err_code);
 				if(f_err_code==FR_DISK_ERR || f_err_code==FR_NOT_READY)
 					Usart_Send_Str((char*)"No uSD card inserted?\r\n");
 			}
 			else {				//We have a mounted card
+				print_string[0]=0x00;	//Wipe the string
 				f_err_code=f_lseek(&FATFS_logfile, PRE_SIZE);// Pre-allocate clusters
 				if (f_err_code || f_tell(&FATFS_logfile) != PRE_SIZE)// Check if the file size has been increased correctly
 					Usart_Send_Str((char*)"Pre-Allocation error\r\n");
@@ -128,27 +129,50 @@ int main(void)
 					file_opened=1;	//So we know to close the file properly on shutdown
 			}
 		}
-		if(f_err_code) {			//There was an init error
+		ADC_Configuration();			//At present this is purely here to detect low battery
+		do {
+			battery_voltage=GET_BATTERY_VOLTAGE;//Have to flush adc for some reason
+			Delay(10000);
+		} while(abs(GET_BATTERY_VOLTAGE-battery_voltage)>0.01);
+		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
+		I2C_Config();				//Setup the I2C bus
+		Sensors=detect_sensors();		//Search for connected sensors
+		if(battery_voltage<BATTERY_STARTUP_LIMIT)
+			deadly_flashes=1;
+		if(!(Sensors&(1<<FOREHEAD_ACCEL)))	//Check for any missing sensors
+			deadly_flashes=2;
+		if(!(Sensors&(1<<FOREHEAD_GYRO)))
+			deadly_flashes=3;
+		if(!(Sensors&(1<<SFE_1_ACCEL)))
+			deadly_flashes=4;
+		if(!(Sensors&(1<<SFE_1_MAGNO)))
+			deadly_flashes=5;
+		if(!(Sensors&(1<<SFE_1_GYRO)))
+			deadly_flashes=6;
+		if(!(Sensors&(1<<SFE_2_ACCEL)))
+			deadly_flashes=7;
+		if(!(Sensors&(1<<SFE_2_MAGNO)))
+			deadly_flashes=8;
+		if(!(Sensors&(1<<SFE_2_GYRO)))
+			deadly_flashes=9;		
+		//We die, but flash out a number of flashes first
+		if(f_err_code || deadly_flashes) {	//There was an init error
+			for(;deadly_flashes;deadly_flashes--) {
+				RED_LED_ON;
+				Delay(200000);
+				RED_LED_OFF;
+				Delay(200000);
+				Watchdog_Reset();
+			}
 			RED_LED_ON;
 			Delay(400000);
-			shutdown();			//Abort after a single red flash
+			shutdown();			//Abort after a (further )single red flash
 		}
-		init_buffer(&(Buff[0]),PPG_BUFFER_SIZE);//Enough for ~0.25S of data
-		init_buffer(&(Buff[1]),PPG_BUFFER_SIZE);
 	}
-	setup_pwm();					//Enable the PWM outputs on all three channels
-	Delay(100000);					//Sensor+inst amplifier takes about 100ms to stabilise after power on
-	ADC_Configuration();				//We leave this a bit later to allow stabilisation
-	calibrate_sensor();				//Calibrate the offset on the diff pressure sensor
-	EXTI_ONOFF_EN();				//Enable the off interrupt - allow some time for debouncing
-	I2C_Config();					//Setup the I2C bus
-	Sensors=detect_sensors();			//Search for connected sensors
-	Pressure_control=Sensors&(1<<PRESSURE_HOSE);	//Enable active pressure control if a hose is connected
-	Pressure_Setpoint=0;				//Not applied pressure, should cause motor and solenoid to go to idle state
-	while(!bytes_in_buff(&(Buff[0])));		//Wait for some PPG data for the auto brightness to work with
-	PPG_Automatic_Brightness_Control();		//Run the automatic brightness setting on power on
 	rtc_gettime(&RTC_time);				//Get the RTC time and put a timestamp on the start of the file
 	printf("%d-%d-%dT%d:%d:%d\n",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);//ISO 8601 timestamp header
+	printf("Battery: %3fV\n",GET_BATTERY_VOLTAGE);	//Get the battery voltage using blocking regular conversion and print
+	printf("Sensor Cable ID is:%d\n",Sensor_Cable);	//Print the sensor cable ID in the header
 	if(file_opened) {
 		f_puts(print_string,&FATFS_logfile);
 		print_string[0]=0x00;			//Set string length to 0
@@ -156,24 +180,51 @@ int main(void)
 	Millis=0;					//Reset system uptime, we have 50 days before overflow
 	while (1) {
 		Watchdog_Reset();			//Reset the watchdog each main loop iteration
-		while(!bytes_in_buff(&(Buff[0])));	//Wait for some PPG data
-		Get_From_Buffer(&(ppg[0]),&(Buff[0]));	//Retrive one sample of PPG
-		Get_From_Buffer(&(ppg[1]),&(Buff[1]));	
-		printf("%3f,%lu,%lu",(float)(data_counter++)/PPG_SAMPLE_RATE,ppg[0],ppg[1]);//Print data after a time stamp (not Millis)
-		if(Sensors&(1<<PRESSURE_HOSE)) {	//Air hose connected
-			Get_From_Buffer(&sensor_data,&Pressures_Buffer);//This is syncronised with PPG data in PPG ISR using a global defined in the sensor header
-			printf(",%2f",sensor_data);	//print the retreived data
+		while(!bytes_in_buff(&(forehead_buffer.temp)));	//Wait for some data - as all the sensor reads are aligned, can just use this one sensor
+		printf("%2f,",(float)data_counter/ITERATION_RATE);//the timestamp
+		for(uint8_t n=0;n<3;n++) {
+			Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
+			printf("%d,",sensor_data);	//print the retreived data
 		}
-		if(Sensors&(1<<TEMPERATURE_SENSOR)) {	//If there is a temperature sensor present
-			Get_From_Buffer(&sensor_data,&Temperatures_Buffer);
-			printf(",%2f",sensor_data);	//print the retreived data
+		for(uint8_t n=0;n<3;n++) {
+			Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.gyro[n]));//Retrive one sample of data
+			printf("%d,",sensor_data);	//print the retreived data
 		}
+		Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.temp));//Retrive one sample of data
+		printf("%d,",*(int8_t*)&sensor_data);	//LSM sensor outputs a signed 8 bit temperature in degrees C
+		for(uint8_t m=0;m<2;m++) {
+			for(uint8_t n=0;n<3;n++) {
+				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].accel[n]));//Retrive one sample of data
+				printf("%d,",sensor_data);	//print the retreived data
+			}
+			for(uint8_t n=0;n<3;n++) {
+				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].gyro[n]));//Retrive one sample of data
+				printf("%d,",sensor_data);	//print the retreived data
+			}
+			for(uint8_t n=0;n<3;n++) {
+				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].magno[n]));//Retrive one sample of data
+				printf("%d,",sensor_data);	//print the retreived data
+			}
+			Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].temp));//Retrive one sample of data
+			printf("%d,",sensor_data);
+		}
+		// ^ data order is
+		//time, forehead acc, forehead gyro, forehead temp, sfe1 acc, sfe1 gyro, sfe1 magno, sfe1 temp, sfe2 acc, sfe2 gyro, sfe2 magno, sfe2 temp
 		//Other sensors etc can go here
+		//Button multipress status
+		if(System_state_Global&0x80) {		//A "control" button press
+			system_state=System_state_Global&~0x80;//Copy to local variable
+			//Any button press implimented functionality can go here
+			System_state_Global&=~0x80;	//Wipe the flag bit to show this has been processed
+		}
+		printf("%d",system_state);		//Terminating newline
+		system_state=0;				//Reset this
 		printf("\n");				//Terminating newline
 		if(file_opened) {
 			f_puts(print_string,&FATFS_logfile);
 			print_string[0]=0x00;		//Set string length to 0
 		}
+		data_counter++;				//Counts up for use as a timestamp
 		//Deal with file size - may need to preallocate some more
 		if(f_size(&FATFS_logfile)-f_tell(&FATFS_logfile)<(PRE_SIZE/2)) {//More than half way through the pre-allocated area
 			DWORD size=f_tell(&FATFS_logfile);
@@ -184,13 +235,9 @@ int main(void)
 			switch_leds_on();		//Flash the LED(s)
 		else
 			switch_leds_off();
-		if(Millis%15000>4000)			//15 second cycle of pressure control - 11s dump, 4s pump to 3psi
-			Pressure_Setpoint=-1;
-		else
-			Pressure_Setpoint=3;		//3PSI setpoint
 		if(System_state_Global&0x80) {		//A "control" button press
 			System_state_Global&=~0x80;	//Wipe the flag bit to show this has been processed
-			PPG_Automatic_Brightness_Control();//At the moment this is the only function implimented
+			//at moment nothing implimented for button press, but system state is printed for use as an event marker
 		}
 	}
 }
@@ -221,28 +268,30 @@ void __str_print_char(char c) {
   * @retval Bitmask of detected sensors
   */
 uint8_t detect_sensors(void) {
-	uint32_t millis=Millis;				//Store the time on entry
-	uint8_t sensors=0;
-	SCHEDULE_CONFIG;				//Run the I2C devices config
-	//Detect if there is an air hose connected
-	Pressure_control|=0x80;				//Set msb - indicates motor is free to run
-	Set_Motor((int16_t)(MAX_DUTY)/2);		//Set the motor to 50% max duty cycle
-	while(Millis<(millis+300)) {			//Wait 300ms
-		if(Reported_Pressure>(PRESSURE_MARGIN*5)) {//We got some sane pressure increase
-			sensors|=(1<<PRESSURE_HOSE);
-			init_buffer(&Pressures_Buffer,TMP102_BUFFER_SIZE);//reuse the TMP102 buffer size - as we want the same amount of buffering
-			break;				//Exit loop at this point
-		}
+	uint32_t millis = Millis;			//Store the time on entry
+	uint32_t jobs_completed = 0;
+	uint8_t sensors = 0;
+	Jobs=SCHEDULE_CONFIG_FIRST_BUS;			//Run the I2C devices config on first bus
+	I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
+	while(Jobs);//while((I2C1->CR2)&(I2C_IT_EVT));	//Wait for the i2c driver to complete (if we jam here, watchdog should catch us)
+	jobs_completed = Completed_Jobs;		//Copy this so it is not overwritten
+	if(I2C1error.job == LSM330_ACCEL_CONFIG_JOB) {	//The accel address is different on differing versions of the sensor cable
+		I2C_jobs[FOREHEAD_ACCEL].address = LSM_330_ACCEL_ADDR|0x02;
+		I2C_jobs[LSM330_ACCEL_CONFIG_JOB].address = LSM_330_ACCEL_ADDR|0x02;//Change the addresses on the forehead accel
+		I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
+		while(Jobs);				//Wait for completion
+		jobs_completed |= Completed_Jobs;
+		Sensor_Cable=0x01;			//This cable id functionality could be extended if future adding i2c EEPROM for example
 	}
-	Pressure_control&=~0x80;			//Clear the Pressure_control msb so that motor is disabled in control off mode
-	Set_Motor((int16_t)0);				//Set the motor and solenoid off
-	//Detect if there is a temperature sensor connected
-	if(Completed_Jobs&(1<<TMP102_CONFIG)) {
-		sensors|=(1<<TEMPERATURE_SENSOR);	//The I2C job completion means the sensor must be working
-		init_buffer(&Temperatures_Buffer,TMP102_BUFFER_SIZE);
+	Remap();					//Remap i2c to bus2
+	Jobs=SCHEDULE_CONFIG_SECOND_BUS;		//Run the I2C devices config on second bus
+	I2C1_Request_Job(ADXL_CONFIG_JOB);		//Restart i2c by calling this
+	while((I2C1->CR2)&(I2C_IT_EVT));		//Wait for the i2c driver to complete (if we jam here, watchdog should catch us), auto unremapped
+	sensors=(jobs_completed>>LSM330_ACCEL_CONFIG_JOB)&0x1F;//shift this to set the sensor detected bits
+	sensors|=((Completed_Jobs)>>(ADXL_CONFIG_JOB-SFE_2_ACCEL))&0xE0;
+	if(sensors==0xFF) {				//All sensors found ok
+		Allocate_Sensor_Buffers(50);		//Calls sensor function to allocate buffers - enough for 0.5s of data
+		Configure_I2C_Driver();
 	}
-	//Other sensors, e.g. Temperature sensor/sensors on the I2C bus go here
-	//At the moment we assume PPG is always present, TODO make this detectable
-	sensors|=(1<<PPG_SENSOR);
 	return sensors;
 }

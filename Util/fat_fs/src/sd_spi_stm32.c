@@ -37,6 +37,7 @@
 #include "../inc/integer.h"
 #include "../inc/diskio.h"
 #include "../../../gpio.h"
+#include "../../USB/mass_mal.h"
 
 // demo uses a command line option to define this (see Makefile):
 #define STM32_SD_USE_DMA
@@ -51,7 +52,11 @@
 #define STM32_SD_DISK_IOCTRL_FORCE      0
 
 // demo uses a command line option to define this (see Makefile):
+#if BOARD<3
 #define USE_EK_STM32F //this is ported to our hardware - CRT pcb
+#else
+#define USE_EJ_STM32F //this is ported to our hardware - CRT pcb
+#endif
 //#define USE_STM32_P103
 //#define USE_MINI_STM32
 
@@ -77,8 +82,33 @@
  #define GPIO_Pin_SPI_SD_MOSI     GPIO_Pin_7
  #define RCC_APBPeriphClockCmd_SPI_SD  RCC_APB2PeriphClockCmd
  #define RCC_APBPeriph_SPI_SD     RCC_APB2Periph_SPI1
- /* - for SPI2 and full-speed APB1: 72MHz/(4)=18mhz */
- #define SPI_BaudRatePrescaler_SPI_SD  SPI_BaudRatePrescaler_4/*Note that the ST perif lib defines prescale as F_APB/S_SPI*/
+ /* - for SPI1 and full-speed APB2: 72MHz/(4)=18mhz */
+ #define SPI_BaudRatePrescaler_SPI_SD  SPI_BaudRatePrescaler_8/*Note that the ST perif lib defines prescale as F_APB/S_SPI*/
+
+#elif defined(USE_EJ_STM32F)
+ #define CARD_SUPPLY_SWITCHABLE   0		/*we dont have switchable */
+ #define GPIO_PWR                 GPIOD
+ #define RCC_APB2Periph_GPIO_PWR  RCC_APB2Periph_GPIOD
+ #define GPIO_Pin_PWR             GPIO_Pin_10
+ #define GPIO_Mode_PWR            GPIO_Mode_Out_OD /* pull-up resistor at power FET */
+ #define SOCKET_WP_CONNECTED      0		/*These are defined as 0 as they arent supported on CRT 1.0 pcb*/
+ #define SOCKET_CP_CONNECTED      0
+ #define SPI_SD                   SPI2
+ #define GPIO_CS                  GPIOB
+ #define RCC_APB2Periph_GPIO_CS   RCC_APB2Periph_GPIOB
+ #define GPIO_Pin_CS              SD_SEL_PIN
+ //#define DMA_Channel_SPI_SD_RX    DMA1_Channel4
+ #define DMA_Channel_SPI_SD_TX    DMA1_Channel5
+ #define DMA_FLAG_SPI_SD_TC_RX    DMA1_FLAG_TC4
+ #define DMA_FLAG_SPI_SD_TC_TX    DMA1_FLAG_TC5
+ #define GPIO_SPI_SD              GPIOB
+ #define GPIO_Pin_SPI_SD_SCK      GPIO_Pin_13
+ #define GPIO_Pin_SPI_SD_MISO     GPIO_Pin_14
+ #define GPIO_Pin_SPI_SD_MOSI     GPIO_Pin_15
+ #define RCC_APBPeriphClockCmd_SPI_SD  RCC_APB1PeriphClockCmd
+ #define RCC_APBPeriph_SPI_SD     RCC_APB1Periph_SPI2
+ /* - for SPI2 and full-speed APB1: 36MHz/(2)=18mhz */
+ #define SPI_BaudRatePrescaler_SPI_SD  SPI_BaudRatePrescaler_4//2/*Note that the ST perif lib defines prescale as F_APB/S_SPI*/
 
 #elif defined(USE_STM32_P103)
  // Olimex STM32-P103 not tested!
@@ -137,7 +167,6 @@
 #error "unsupported board"
 #endif
 
-
 /* Definitions for MMC/SDC command */
 #define CMD0	(0x40+0)	/* GO_IDLE_STATE */
 #define CMD1	(0x40+1)	/* SEND_OP_COND (MMC) */
@@ -189,6 +218,8 @@ DWORD Timer1, Timer2;	/* 100Hz decrement timers */
 
 static
 BYTE CardType;			/* Card type flags */
+
+volatile BYTE Sd_Spi_Called_From_USB_MSC;/* Added for faster use in USB mass storage*/
 
 enum speed_setting { INTERFACE_SLOW, INTERFACE_FAST };
 
@@ -393,7 +424,6 @@ BYTE wait_ready (void)
 /* Deselect the card and release SPI bus                                 */
 /*-----------------------------------------------------------------------*/
 
-static
 void release_spi (void)
 {
 	DESELECT();
@@ -407,15 +437,15 @@ void release_spi (void)
 static
 void stm32_dma_transfer(
 	BOOL receive,		/* FALSE for buff->SPI, TRUE for SPI->buff               */
-	const BYTE *buff,	/* receive TRUE  : 512 byte data block to be transmitted
+	const volatile BYTE * buff,	/* receive TRUE  : 512 byte data block to be transmitted
 						   receive FALSE : Data buffer to store received data    */
 	UINT btr 			/* receive TRUE  : Byte count (must be multiple of 2)
 						   receive FALSE : Byte count (must be 512)              */
 )
 {
 	DMA_InitTypeDef DMA_InitStructure;
-	WORD rw_workbyte[] = { 0xffff };
-
+	static WORD rw_workbyte[] = { 0xffff };//This has to be static to avoid overwrite
+	GPIO_InitTypeDef GPIO_InitStructure;
 	/* shared DMA configuration values */
 	DMA_InitStructure.DMA_PeripheralBaseAddr = (DWORD)(&(SPI_SD->DR));
 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
@@ -430,7 +460,6 @@ void stm32_dma_transfer(
 	DMA_DeInit(DMA_Channel_SPI_SD_TX);
 
 	if ( receive ) {
-
 		/* DMA1 channel2 configuration SPI1 RX ---------------------------------------------*/
 		/* DMA1 channel4 configuration SPI2 RX ---------------------------------------------*/
 		DMA_InitStructure.DMA_MemoryBaseAddr = (DWORD)buff;
@@ -464,7 +493,6 @@ void stm32_dma_transfer(
 #endif
 
 	}
-
 	/* Enable DMA RX Channel */
 	DMA_Cmd(DMA_Channel_SPI_SD_RX, ENABLE);
 	/* Enable DMA TX Channel */
@@ -477,17 +505,34 @@ void stm32_dma_transfer(
 	// not needed
 	//while (DMA_GetFlagStatus(DMA_FLAG_SPI_SD_TC_TX) == RESET) { ; }
 	/* Wait until DMA1_Channel 2 Receive Complete */
-	while (DMA_GetFlagStatus(DMA_FLAG_SPI_SD_TC_RX) == RESET) { ; }
-	// same w/o function-call:
-	// while ( ( ( DMA1->ISR ) & DMA_FLAG_SPI_SD_TC_RX ) == RESET ) { ; }
+	if(!Sd_Spi_Called_From_USB_MSC) {//Mass storage uses non blocking read
+		//while(1);
+		while (DMA_GetFlagStatus(DMA_FLAG_SPI_SD_TC_RX) == RESET) { ; }
+		// same w/o function-call:
+		// while ( ( ( DMA1->ISR ) & DMA_FLAG_SPI_SD_TC_RX ) == RESET ) { ; }
+		/* Disable DMA RX Channel */
+		DMA_Cmd(DMA_Channel_SPI_SD_RX, DISABLE);
+		/* Disable DMA TX Channel */
+		DMA_Cmd(DMA_Channel_SPI_SD_TX, DISABLE);
+		
+		/* Disable SPI RX/TX request */
+		SPI_I2S_DMACmd(SPI_SD, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, DISABLE);
+	}
+}
 
-	/* Disable DMA RX Channel */
-	DMA_Cmd(DMA_Channel_SPI_SD_RX, DISABLE);
-	/* Disable DMA TX Channel */
-	DMA_Cmd(DMA_Channel_SPI_SD_TX, DISABLE);
+void wrapup_transaction(void) {
+		//while (DMA_GetFlagStatus(DMA_FLAG_SPI_SD_TC_RX) == RESET) { ; }
+		/* Disable DMA RX Channel */
+		DMA_Cmd(DMA_Channel_SPI_SD_RX, DISABLE);
+		/* Disable DMA TX Channel */
+		DMA_Cmd(DMA_Channel_SPI_SD_TX, DISABLE);
+		
+		/* Disable SPI RX/TX request */
+		SPI_I2S_DMACmd(SPI_SD, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, DISABLE);
+}
 
-	/* Disable SPI RX/TX request */
-	SPI_I2S_DMACmd(SPI_SD, SPI_I2S_DMAReq_Rx | SPI_I2S_DMAReq_Tx, DISABLE);
+void stop_cmd(void){
+	send_cmd(CMD12, 0);
 }
 #endif /* STM32_SD_USE_DMA */
 
@@ -587,37 +632,35 @@ void power_off_ (void)
 /*-----------------------------------------------------------------------*/
 /* Receive a data packet from MMC                                        */
 /*-----------------------------------------------------------------------*/
-
-static
 BOOL rcvr_datablock (
-	BYTE *buff,			/* Data buffer to store received data */
+	volatile BYTE *  buff,		/* Data buffer to store received data */
 	UINT btr			/* Byte count (must be multiple of 4) */
 )
 {
 	BYTE token;
-
-
 	Timer1 = 10;
-	do {							/* Wait for data packet in timeout of 100ms */
+	do {				/* Wait for data packet in timeout of 5//100ms */
 		token = rcvr_spi();
 	} while ((token == 0xFF) && Timer1);
 	if(token != 0xFE) return FALSE;	/* If not valid data token, return with error */
 
 #ifdef STM32_SD_USE_DMA
+	if(Sd_Spi_Called_From_USB_MSC)
+		btr+=2;			/* Receive the CRC as part of the DMA if using USB*/
 	stm32_dma_transfer( TRUE, buff, btr );
 #else
-	do {							/* Receive the data block into buffer */
+	do {				/* Receive the data block into buffer */
 		rcvr_spi_m(buff++);
 		rcvr_spi_m(buff++);
 		rcvr_spi_m(buff++);
 		rcvr_spi_m(buff++);
 	} while (btr -= 4);
 #endif /* STM32_SD_USE_DMA */
-
-	rcvr_spi();						/* Discard CRC */
-	rcvr_spi();
-
-	return TRUE;					/* Return with success */
+	if(!Sd_Spi_Called_From_USB_MSC) {//Mass storage uses non blocking read
+		rcvr_spi();		/* Discard CRC */
+		rcvr_spi();
+	}
+	return TRUE;			/* Return with success */
 }
 
 
@@ -629,7 +672,7 @@ BOOL rcvr_datablock (
 #if _FS_READONLY == 0
 static
 BOOL xmit_datablock (
-	const BYTE *buff,	/* 512 byte data block to be transmitted */
+	const BYTE *buff,		/* 512 byte data block to be transmitted */
 	BYTE token			/* Data/Stop token */
 )
 {
@@ -640,8 +683,8 @@ BOOL xmit_datablock (
 
 	if (wait_ready() != 0xFF) return FALSE;
 
-	xmit_spi(token);					/* transmit data token */
-	if (token != 0xFD) {	/* Is data token */
+	xmit_spi(token);		/* transmit data token */
+	if (token != 0xFD) {		/* Is data token */
 
 #ifdef STM32_SD_USE_DMA
 		stm32_dma_transfer( FALSE, buff, 512 );
@@ -669,7 +712,6 @@ BOOL xmit_datablock (
 /*-----------------------------------------------------------------------*/
 /* Send a command packet to MMC                                          */
 /*-----------------------------------------------------------------------*/
-
 static
 BYTE send_cmd (
 	BYTE cmd,		/* Command byte */
@@ -677,7 +719,6 @@ BYTE send_cmd (
 )
 {
 	BYTE n, res;
-
 
 	if (cmd & 0x80) {	/* ACMD<n> is the command sequence of CMD55-CMD<n> */
 		cmd &= 0x7F;
@@ -710,7 +751,6 @@ BYTE send_cmd (
 	do
 		res = rcvr_spi();
 	while ((res & 0x80) && --n);
-
 	return res;			/* Return with the response value */
 }
 
@@ -803,8 +843,8 @@ DSTATUS disk_status (
 
 DRESULT disk_read (
 	BYTE drv,			/* Physical drive number (0) */
-	BYTE *buff,			/* Pointer to the data buffer to store read data */
-	DWORD sector,		/* Start sector number (LBA) */
+	volatile BYTE * buff,		/* Pointer to the data buffer to store read data */
+	DWORD sector,			/* Start sector number (LBA) */
 	BYTE count			/* Sector count (1..255) */
 )
 {
@@ -826,13 +866,17 @@ DRESULT disk_read (
 				if (!rcvr_datablock(buff, 512)) {
 					break;
 				}
+				if(Sd_Spi_Called_From_USB_MSC) {//Mass storage uses non blocking read
+					return RES_OK;
+				}
 				buff += 512;
 			} while (--count);
-			send_cmd(CMD12, 0);				/* STOP_TRANSMISSION */
+			send_cmd(CMD12, 0);		/* STOP_TRANSMISSION */
 		}
 	}
-	release_spi();
-
+	if(!Sd_Spi_Called_From_USB_MSC) {//Mass storage uses non blocking read
+		release_spi();
+	}
 	return count ? RES_ERROR : RES_OK;
 }
 

@@ -20,8 +20,8 @@ void setup_gpio(void)
 		if(GET_CHRG_STATE) {		//We booted from USB
 			bootsource=USB_SOURCE;	//so we know for reference later
 			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;//reset the pin to an open drain output
-			GPIO_Init( GPIOB, &GPIO_InitStructure );//This enables the pin to be used to shutdown the charger in suspend mode
 			CHRG_ON;		//default to charger enabled
+			GPIO_Init( GPIOB, &GPIO_InitStructure );//This enables the pin to be used to shutdown the charger in suspend mode
 			n=0;
 			break;
 		}
@@ -58,22 +58,6 @@ void setup_gpio(void)
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
 	GPIO_Init( GPIOB, &GPIO_InitStructure );
-	//Configure the PWM outputs
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;//reduced slew rate to reduce interference on the board
-	GPIO_PinRemapConfig( GPIO_FullRemap_TIM2, ENABLE );//to B.10
-	GPIO_InitStructure.GPIO_Pin = PWM0|PWM1|PWM2;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init( GPIOB, &GPIO_InitStructure );
-	//Configure the pump Motor PWM
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;//faster slew rate for the motor so mosfet spends more time fully on/off
-	GPIO_InitStructure.GPIO_Pin = PWM_MOTOR;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init( GPIOA, &GPIO_InitStructure );
-	//Configure Solenoid pin
-	GPIO_InitStructure.GPIO_Pin = SOLENOID;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_Init( GPIOB, &GPIO_InitStructure );
-	GPIO_WriteBit(GPIOB,SOLENOID,Bit_RESET);//Make sure solenoid off
 }
 
 void switch_leds_on(void)

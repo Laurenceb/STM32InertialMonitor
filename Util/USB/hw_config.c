@@ -164,7 +164,7 @@ void USB_Interrupts_Config(void)
 {
   NVIC_InitTypeDef NVIC_InitStructure;
 
-  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+ // NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 
 #ifdef STM32L1XX_MD
   NVIC_InitStructure.NVIC_IRQChannel = USB_LP_IRQn;
@@ -195,7 +195,7 @@ void USB_Interrupts_Config(void)
 #endif /* STM32F10X_CL */
 
   
-#if defined(STM32F10X_HD) || defined(STM32F10X_XL)  
+#if defined(STM32F10X_HD) || defined(STM32F10X_XL) 
   NVIC_InitStructure.NVIC_IRQChannel = SDIO_IRQn;
   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
