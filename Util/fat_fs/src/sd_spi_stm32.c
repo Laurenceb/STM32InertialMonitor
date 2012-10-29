@@ -83,7 +83,7 @@
  #define RCC_APBPeriphClockCmd_SPI_SD  RCC_APB2PeriphClockCmd
  #define RCC_APBPeriph_SPI_SD     RCC_APB2Periph_SPI1
  /* - for SPI1 and full-speed APB2: 72MHz/(4)=18mhz */
- #define SPI_BaudRatePrescaler_SPI_SD  SPI_BaudRatePrescaler_8/*Note that the ST perif lib defines prescale as F_APB/S_SPI*/
+ #define SPI_BaudRatePrescaler_SPI_SD  SPI_BaudRatePrescaler_4/*Note that the ST perif lib defines prescale as F_APB/S_SPI*/
 
 #elif defined(USE_EJ_STM32F)
  #define CARD_SUPPLY_SWITCHABLE   0		/*we dont have switchable */
