@@ -84,6 +84,26 @@ int main(void)
 	else {
 		if(!GET_PWR_STATE)			//Check here to make sure the power button is still pressed, if not, sleep
 			shutdown();			//This means a glitch on the supply line, or a power glitch results in sleep
+		ADC_Configuration();			//At present this is purely here to detect low battery
+		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
+		I2C_Config();				//Setup the I2C bus
+		Sensors=detect_sensors();		//Search for connected sensors
+		if(!(Sensors&(1<<FOREHEAD_ACCEL)))	//Check for any missing sensors
+			deadly_flashes=2;
+		if(!(Sensors&(1<<FOREHEAD_GYRO)))
+			deadly_flashes=3;
+		if(!(Sensors&(1<<SFE_1_ACCEL)))
+			deadly_flashes=4;
+		if(!(Sensors&(1<<SFE_1_MAGNO)))
+			deadly_flashes=5;
+		if(!(Sensors&(1<<SFE_1_GYRO)))
+			deadly_flashes=6;
+		if(!(Sensors&(1<<SFE_2_ACCEL)))
+			deadly_flashes=7;
+		if(!(Sensors&(1<<SFE_2_MAGNO)))
+			deadly_flashes=8;
+		if(!(Sensors&(1<<SFE_2_GYRO)))
+			deadly_flashes=9;
 		if((f_err_code = f_mount(0, &FATFS_Obj)))Usart_Send_Str((char*)"FatFs mount error\r\n");//This should only error if internal error
 		else {					//FATFS initialised ok, try init the card, this also sets up the SPI1
 			if(!f_open(&FATFS_logfile,"time.txt",FA_OPEN_EXISTING | FA_READ | FA_WRITE)) {//Try and open a time file to get the system time
@@ -129,32 +149,12 @@ int main(void)
 					file_opened=1;	//So we know to close the file properly on shutdown
 			}
 		}
-		ADC_Configuration();			//At present this is purely here to detect low battery
 		do {
 			battery_voltage=GET_BATTERY_VOLTAGE;//Have to flush adc for some reason
 			Delay(10000);
 		} while(abs(GET_BATTERY_VOLTAGE-battery_voltage)>0.01);
-		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
-		I2C_Config();				//Setup the I2C bus
-		Sensors=detect_sensors();		//Search for connected sensors
 		if(battery_voltage<BATTERY_STARTUP_LIMIT)
-			deadly_flashes=1;
-		if(!(Sensors&(1<<FOREHEAD_ACCEL)))	//Check for any missing sensors
-			deadly_flashes=2;
-		if(!(Sensors&(1<<FOREHEAD_GYRO)))
-			deadly_flashes=3;
-		if(!(Sensors&(1<<SFE_1_ACCEL)))
-			deadly_flashes=4;
-		if(!(Sensors&(1<<SFE_1_MAGNO)))
-			deadly_flashes=5;
-		if(!(Sensors&(1<<SFE_1_GYRO)))
-			deadly_flashes=6;
-		if(!(Sensors&(1<<SFE_2_ACCEL)))
-			deadly_flashes=7;
-		if(!(Sensors&(1<<SFE_2_MAGNO)))
-			deadly_flashes=8;
-		if(!(Sensors&(1<<SFE_2_GYRO)))
-			deadly_flashes=9;		
+			deadly_flashes=1;	
 		//We die, but flash out a number of flashes first
 		if(f_err_code || deadly_flashes) {	//There was an init error
 			for(;deadly_flashes;deadly_flashes--) {
@@ -180,7 +180,8 @@ int main(void)
 	Millis=0;					//Reset system uptime, we have 50 days before overflow
 	while (1) {
 		Watchdog_Reset();			//Reset the watchdog each main loop iteration
-		while(!bytes_in_buff(&(forehead_buffer.temp)));	//Wait for some data - as all the sensor reads are aligned, can just use this one sensor
+		while(!bytes_in_buff(&(forehead_buffer.temp)))	//Wait for some data - as all the sensor reads are aligned, can just use this one sensor
+			__WFI();
 		printf("%2f,",(float)data_counter/ITERATION_RATE);//the timestamp
 		for(uint8_t n=0;n<3;n++) {
 			Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
