@@ -42,7 +42,7 @@ int main(void)
 	uint32_t data_counter=0;			//used as data timestamp
 	uint8_t deadly_flashes=0,system_state=0,repetition_counter=0;
 	int16_t sensor_data;				//used for handling data passed back from sensors
-	int16_t sfe_sensor_ref_buff[2][3],sfe_sensor_ref_buff_old[2][3];//used to detect and fix I2C bus lockup
+	Sparkfun_9DOF_buff sfe_sensor_ref_buff[2];	//used to detect and I2C bus lockup
 	RTC_t RTC_time;
 	SystemInit();					//Sets up the clk
 	setup_gpio();					//Initialised pins, and detects boot source
@@ -80,7 +80,6 @@ int main(void)
 			else
 				switch_leds_off();
 			Watchdog_Reset();
-			__WFI();			//Sleep until something arrives
 		}
 	}
 	else {
@@ -88,14 +87,8 @@ int main(void)
 			shutdown();			//This means a glitch on the supply line, or a power glitch results in sleep
 		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
 		ADC_Configuration();			//At present this is purely here to detect low battery
-		do {
-			battery_voltage=Battery_Voltage;//Have to flush adc for some reason
-			Delay(25000);
-		} while(abs(Battery_Voltage-battery_voltage)>0.01 || !battery_voltage);
 		I2C_Config();				//Setup the I2C bus
 		Sensors=detect_sensors(0);		//Search for connected sensors
-		if(battery_voltage<BATTERY_STARTUP_LIMIT)
-			deadly_flashes=1;
 		if(!(Sensors&(1<<FOREHEAD_ACCEL)))	//Check for any missing sensors
 			deadly_flashes=2;
 		if(!(Sensors&(1<<FOREHEAD_GYRO)))
@@ -133,8 +126,7 @@ int main(void)
 			}
 			rtc_gettime(&RTC_time);		//Get the RTC time and put a timestamp on the start of the file
 			rprintfInit(__str_print_char);	//Print to the string
-			//timestamp name
-			printf("%d-%02d-%02dT%02d-%02d-%02d.txt",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);
+			printf("%d-%d-%dT%d-%d-%d.txt",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);//timestamp name
 			rprintfInit(__usart_send_char);	//Printf over the bluetooth
 			if((f_err_code=f_open(&FATFS_logfile,print_string,FA_CREATE_ALWAYS | FA_WRITE))) {//Present
 				printf("FatFs drive error %d\r\n",f_err_code);
@@ -157,7 +149,13 @@ int main(void)
 				else
 					file_opened=1;	//So we know to close the file properly on shutdown
 			}
-		}	
+		}
+		do {
+			battery_voltage=GET_BATTERY_VOLTAGE;//Have to flush adc for some reason
+			Delay(10000);
+		} while(abs(GET_BATTERY_VOLTAGE-battery_voltage)>0.01);
+		if(battery_voltage<BATTERY_STARTUP_LIMIT)
+			deadly_flashes=1;	
 		//We die, but flash out a number of flashes first
 		if(f_err_code || deadly_flashes) {	//There was an init error
 			for(;deadly_flashes;deadly_flashes--) {
@@ -173,41 +171,33 @@ int main(void)
 		}
 	}
 	rtc_gettime(&RTC_time);				//Get the RTC time and put a timestamp on the start of the file
-	//ISO8601 timestamp header
-	printf("%d-%02d-%02dT%02d:%02d:%02d\n",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);
-	printf("Battery: %3fV\n",Battery_Voltage);	//Get the battery voltage using blocking regular conversion and print
+	printf("%d-%d-%dT%d:%d:%d\n",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);//ISO 8601 timestamp header
+	printf("Battery: %3fV\n",GET_BATTERY_VOLTAGE);	//Get the battery voltage using blocking regular conversion and print
 	printf("Sensor Cable ID is:%d\n",Sensor_Cable);	//Print the sensor cable ID in the header
 	if(file_opened) {
 		f_puts(print_string,&FATFS_logfile);
 		print_string[0]=0x00;			//Set string length to 0
 	}
 	Millis=0;					//Reset system uptime, we have 50 days before overflow
-	I2C1error.error=0;
 	while (1) {
 		if(!I2C1error.error && repetition_counter<4) {
 			Watchdog_Reset();		//Reset the watchdog each main loop iteration if everything looks ok
-			if(memcmp(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff)))//If data differs
+			if(memcmp(sfe_sensor_buffers,sfe_sensor_ref_buff,sizeof(sfe_sensor_buffers)))//If data differs
 				repetition_counter=0;	//New data differs
 			else
 				repetition_counter++;	//Incriment the lockup detector
-			memcpy(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff_old));//Copy for reference
+			memcpy(sfe_sensor_buffers,sfe_sensor_ref_buff,sizeof(sfe_sensor_buffers));//Copy for reference
 		}
 		else {
-			do {
-				Sensors=0;		//Set this to zero to stop the systick firing off I2C1 writes
-				I2C1error.error=0;	//Reset both of these
-				repetition_counter=0;
-				I2C_Config();		//Setup the I2C bus
-				uint8_t sensors;
-				sensors=detect_sensors(1);//Search for connected sensors - argument means the i2c data output buffers are not reinitialised
-				Delay(100000);
-				Sensors=sensors;
-			} while(Sensors !=0xFF);
-			Watchdog_Reset();
+			Sensors=0;			//Set this to zero to stop the systick firing off I2C1 writes
+			I2C1error.error=0;		//Reset both of these
+			repetition_counter=0;
+			I2C_Config();			//Setup the I2C bus
+			Sensors=detect_sensors(1);	//Search for connected sensors - argument means the i2c data output buffers are not reinitialised
 		}
 		while(!bytes_in_buff(&(forehead_buffer.temp)))	//Wait for some data - as all the sensor reads are aligned, can just use this one sensor
 			__WFI();			//Sleep until something arrives
-		printf("%d.%02d,",data_counter/100,data_counter%100);//the timestamp
+		printf("%2f,",(float)data_counter/ITERATION_RATE);//the timestamp
 		for(uint8_t n=0;n<3;n++) {
 			Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
 			printf("%d,",sensor_data);	//print the retreived data
@@ -222,7 +212,6 @@ int main(void)
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].accel[n]));//Retrive one sample of data
 				printf("%d,",sensor_data);	//print the retreived data
-				sfe_sensor_ref_buff[m][n]=sensor_data;//Reference for lockup detection
 			}
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].gyro[n]));//Retrive one sample of data
@@ -300,31 +289,20 @@ uint8_t detect_sensors(uint8_t noini) {
 	uint8_t sensors = 0;
 	Jobs=SCHEDULE_CONFIG_FIRST_BUS;			//Run the I2C devices config on first bus
 	I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
-	while(Jobs) {//while((I2C1->CR2)&(I2C_IT_EVT));//Wait for th i2c driver to complete
-		if(Millis>(millis+20))
-			return 0;
-	}
+	while(Jobs);//while((I2C1->CR2)&(I2C_IT_EVT));	//Wait for the i2c driver to complete (if we jam here, watchdog should catch us)
 	jobs_completed = Completed_Jobs;		//Copy this so it is not overwritten
 	if(I2C1error.job == LSM330_ACCEL_CONFIG_JOB) {	//The accel address is different on differing versions of the sensor cable
 		I2C_jobs[FOREHEAD_ACCEL].address = LSM_330_ACCEL_ADDR|0x02;
 		I2C_jobs[LSM330_ACCEL_CONFIG_JOB].address = LSM_330_ACCEL_ADDR|0x02;//Change the addresses on the forehead accel
 		I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
-		millis=Millis;
-		while(Jobs) {				//Wait for completion
-			if(Millis>(millis+20))
-				return 0;
-		}
+		while(Jobs);				//Wait for completion
 		jobs_completed |= Completed_Jobs;
 		Sensor_Cable=0x01;			//This cable id functionality could be extended if future adding i2c EEPROM for example
 	}
 	Remap();					//Remap i2c to bus2
 	Jobs=SCHEDULE_CONFIG_SECOND_BUS;		//Run the I2C devices config on second bus
 	I2C1_Request_Job(ADXL_CONFIG_JOB);		//Restart i2c by calling this
-	millis=Millis;
-	while( (I2C1->CR2)&(I2C_IT_EVT) || (I2C1->CR1 & 0x0200) ) {//Wait for the i2c driver to complete, and send stop - auto unremapped
-		if(Millis>(millis+20))
-			return 0;
-	}
+	while((I2C1->CR2)&(I2C_IT_EVT));		//Wait for the i2c driver to complete (if we jam here, watchdog should catch us), auto unremapped
 	sensors=(jobs_completed>>LSM330_ACCEL_CONFIG_JOB)&0x1F;//shift this to set the sensor detected bits
 	sensors|=((Completed_Jobs)>>(ADXL_CONFIG_JOB-SFE_2_ACCEL))&0xE0;
 	if(sensors==0xFF && !noini) {			//All sensors found ok and we are allowed to initialise the buffers

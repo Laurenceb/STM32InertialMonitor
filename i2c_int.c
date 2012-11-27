@@ -105,7 +105,13 @@ void I2C1_EV_IRQHandler(void) {
 				subaddress_sent=1;//this is set back to zero upon completion of the current task
 			}
 		}
-		while(I2C1->CR1&0x0100){;}//we must wait for the start to clear, otherwise we get constant BTF
+		uint16_t timeout=50000;
+		while(I2C1->CR1&0x0100 && timeout){timeout++;}//we must wait for the start to clear, otherwise we get constant BTF
+		if(!timeout) {
+			I2C1error.error=0x20;
+			I2C1error.job=job;
+			return;
+		}
 	}
 	else if(SReg_1&0x0040) {//Byte received - EV7
 		I2C_jobs[job].data_pointer[index++]=I2C_ReceiveData(I2C1);		
@@ -142,7 +148,13 @@ void I2C1_EV_IRQHandler(void) {
 		I2C1->CR1&=~0x0800;	//reset the POS bit so NACK applied to the current byte
 		I2C_ITConfig(I2C1, I2C_IT_BUF, DISABLE);//make sure the TXNE/RXE is disabled to start off with
 		if(Jobs && final_stop) {//there are still jobs left
-			while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear
+			uint16_t timeout=50000;
+			while(I2C1->CR1&0x0200 && timeout){timeout++;}//doesnt seem to be a better way to do this, must wait for stop to clear
+			if(!timeout) {//timeout error - save the job
+				I2C1error.error=0x30;
+				I2C1error.job=job;
+				return;
+			}
 			I2C_GenerateSTART(I2C1,ENABLE);//program the Start to kick start the new transfer
 		}
 		else if(final_stop) {	//If there is a final stop and no more jobs, bus is inactive, disable interrupts to prevent BTF
@@ -206,7 +218,13 @@ void I2C1_Request_Job(uint8_t job_) {
 		Jobs|=1<<job_;		//set the job bit, do it here and use interrupt flag to detect bus inactive in case of I2C interrupting here
 		if(!((I2C1->CR2)&(I2C_IT_EVT))) {//if we are restarting the driver
 			if(!(I2C1->CR1&0x0100)) {// ensure sending a start
-				while(I2C1->CR1&0x0200){;}//wait for any stop to finish sending
+				uint16_t timeout=50000;
+				while(I2C1->CR1&0x0200 && timeout){timeout++;}//wait for any stop to finish sending
+				if(!timeout) {//timeout error - save the job
+					I2C1error.error=0x10;
+					I2C1error.job=job_;
+					return;
+				}
 				I2C_GenerateSTART(I2C1,ENABLE);//send the start for the new job
 			}
 			I2C_ITConfig(I2C1, I2C_IT_EVT|I2C_IT_ERR, ENABLE);//allow the interrupts to fire off again

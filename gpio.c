@@ -15,13 +15,14 @@ void setup_gpio(void)
 	//Configure and read the Charger EN pin - this has a pullup to V_USB, so if it reads 1 we booted off usb so setup USB detatch isr
 	GPIO_InitStructure.GPIO_Pin = CHARGER_EN;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_Init( GPIOB, &GPIO_InitStructure );/* configure pin 2 as input*/
 	for(uint16_t n=1;n;n++) {		//USB insertion can be really messy, so loop to detect anything on chrg pin over a few milliseconds
 		if(GET_CHRG_STATE) {		//We booted from USB
 			bootsource=USB_SOURCE;	//so we know for reference later
 			GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;//reset the pin to an open drain output
-			CHRG_ON;		//default to charger enabled
 			GPIO_Init( GPIOB, &GPIO_InitStructure );//This enables the pin to be used to shutdown the charger in suspend mode
+			CHRG_ON;		//default to charger enabled
 			n=0;
 			break;
 		}

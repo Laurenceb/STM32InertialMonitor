@@ -36,9 +36,9 @@ void ADC_Configuration(void)
   ADC_Init(ADC2, &ADC_InitStructure);
 
   /* ADC2 injected channel configuration */
-  ADC_InjectedSequencerLengthConfig(ADC2, 2);//two conversions
+  ADC_InjectedSequencerLengthConfig(ADC2, 1);//one conversion
   //ADC_InjectedChannelConfig(ADC2, 16, 2, ADC_SampleTime_239Cycles5);//on die temperature sensor - only on adc1 :-(
-  ADC_InjectedChannelConfig(ADC2, BATTERY_ADC_CHAN, 2, ADC_SampleTime_239Cycles5);
+  ADC_InjectedChannelConfig(ADC2, BATTERY_ADC_CHAN, 1, ADC_SampleTime_239Cycles5);
   ADC_ExternalTrigInjectedConvConfig(ADC2, ADC_ExternalTrigInjecConv_None);//set sw injected channels
 
 

@@ -54,6 +54,7 @@
 // demo uses a command line option to define this (see Makefile):
 #if BOARD<3
 #define USE_EK_STM32F //this is ported to our hardware - CRT pcb
+#pragma message "Using board revision < 3"
 #else
 #define USE_EJ_STM32F //this is ported to our hardware - CRT pcb
 #endif

@@ -33,7 +33,7 @@ extern volatile uint8_t Sensors;
 //function prototypes
 void __fat_print_char(char c);
 void __str_print_char(char c);
-uint8_t detect_sensors(void);
+uint8_t detect_sensors(uint8_t noini);
 //buffer globals
 extern volatile Sparkfun_9DOF_buff sfe_sensor_buffers[2];//Data from sparkfun sensors
 extern volatile Forehead_sensor_buff forehead_buffer;	//Data from forehead sensors

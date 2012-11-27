@@ -2,6 +2,7 @@
 #include "interrupts.h"
 
 volatile uint8_t Button_hold_tim;				//Timer for On/Off/Control button functionality
+volatile float Battery_Voltage;					//Battery voltage read from systick
 
 /**
   * @brief  Configure all interrupts accept on/off pin
@@ -156,6 +157,7 @@ void SysTickHandler(void)
 		//Check the die temperature - not possible on adc1 :-(
 		//Device_Temperature=convert_die_temp(ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_3));//The on die temperature sensor
 		//Could process some more sensor data here
+		Battery_Voltage=(float)ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1)/(SAMPLING_FACTOR);
 	}
 	ADC_SoftwareStartInjectedConvCmd(ADC2, ENABLE);		//Trigger the injected channel group
 	//Read any I2C bus sensors here (100Hz)
