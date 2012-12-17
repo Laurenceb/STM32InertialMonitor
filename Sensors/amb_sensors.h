@@ -67,7 +67,15 @@ enum{LSM330_ACCEL_CONFIG_JOB=SFE_2_GYRO+1,LSM330_GYRO_CONFIG_JOB,ADXL_CONFIG_JOB
 {ITG3200_ADDR,		I2C_Direction_Transmitter,	sizeof(ITG3200_config),		ITG3200_CONFIG_SUB,		ITG3200_config}, \
 }
 
+#define LSM330_GYRO_RAW_SAMPLE_RATE 380 /* Sampling rates in samples per second */
+#define LSM330_ACCEL_RAW_SAMPLE_RATE 1350/* These are rounded up to the nearest 10hz interval */
+
 extern I2C_Job_Type I2C_jobs[];
+
+extern volatile uint8_t LSM330_Accel_Reads;
+extern volatile uint8_t LSM330_Gyros_Reads;
+
+extern SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];
 
 void Allocate_Sensor_Buffers(uint8_t samples);
 void Configure_I2C_Driver(void);

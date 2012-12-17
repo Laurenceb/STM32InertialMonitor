@@ -134,14 +134,28 @@ void I2C1_EV_IRQHandler(void) {
 		}
 	}
 	if((I2C_jobs[job].bytes+1)==index) {//we have completed the current job
+		Jobs&=~(0x00000001<<job);//tick off current job as complete
 		//Completion Tasks go here
+		if(job==FOREHEAD_ACCEL && LSM330_Accel_Reads) {//Forehead accel is read multiple times
+			LSM330_Accel_Reads--;//wipe off the number of reads
+			Jobs|=0x00000001<<job;//reset the job
+			//Add the data to the buffer from here
+			for(uint8_t n=0;n<3;n++)
+				Add_To_Buffer(*(uint16_t*)&(Rawdata[0][2*n]),		&(forehead_buffer.accel[n]));
+		}
+		if(job==FOREHEAD_GYRO && LSM330_Gyro_Reads) {//Forehead gyro is also read multiple times
+			LSM330_Gyro_Reads--;//wipe off the number of reads
+			Jobs|=0x00000001<<job;//reset the job
+			//Add the data to the buffer from here
+			for(uint8_t n=0;n<3;n++)
+				Add_To_Buffer(*(uint16_t*)&(Rawdata[1][2*n+2]),		&(forehead_buffer.gyro[n]));//+2 as we skip the temperature
+		}
 		if(job==SFE_1_GYRO) {
 			Jobs|=SECOND_BUS_READS;
 			//while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear
 			Remap();//this is very bodgey, but should remap at this points to talk to the other bus
 		}
 		//End of completion tasks
-		Jobs&=~(0x00000001<<job);//tick off current job as complete
 		Completed_Jobs|=(0x00000001<<job);//These can be polled by other tasks to see if a job has been completed or is scheduled 
 		subaddress_sent=0;	//reset these here
 		job=0;

@@ -147,6 +147,7 @@ void SysTickHandler(void)
 	static uint32_t Last_Button_Press;			//Holds the timestamp for the previous button press
 	static uint8_t System_state_counter;			//Holds the system state counter
 	static uint8_t tmpindex;				//Temp sensor decimator
+	static uint8_t acc_samples=0, old_acc_samples=0, gyro_samples=0, old_gyro_samples=0;//Used to syncronise to the raw sensor sample rates with 10sps precison
 	//FatFS timer function
 	disk_timerproc();
 	//Incr the system uptime
@@ -164,6 +165,13 @@ void SysTickHandler(void)
 	if(Sensors==0xFF) {
 		//First read the sensor buffers into the data sample buffers
 		Fill_Sample_Buffers();
+		//Calculate the number of FIFO reads for this iteration
+		acc_samples+=LSM330_ACC_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
+		LSM330_Accel_Reads=(acc_samples-old_acc_samples)/10;//Number of consecutive reads
+		old_acc_samples=acc_samples;
+		gyro_samples+=LSM330_GYRO_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
+		LSM330_Gyro_Reads=(gyro_samples-old_gyro_samples)/10;//Number of consecutive reads
+		old_gyro_samples=gyro_samples;
 		//Now set the jobs
 		Jobs|=FIRST_BUS_READS;				//Request all first bus reads
 		I2C1_Request_Job(FOREHEAD_ACCEL);		//This will automatically cycle through sensor busses

@@ -10,6 +10,11 @@ const uint8_t ADXL_config[]=ADXL_CONFIG;
 const uint8_t HMC_config[]=HMC_CONFIG;
 const uint8_t ITG3200_config[]=ITG3200_CONFIG;
 
+volatile uint8_t LSM330_Accel_Reads;		//FIFO reads used to set number of consecutive FIFO reads to empty buffer
+volatile uint8_t LSM330_Gyros_Reads;		//This is set from the systick ISR, keeping the samples syncronised with the system time, so no clock squew
+
+SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];//Filters used for downsampling the forehead sensor to 100Sps
+
 I2C_Job_Type I2C_jobs[]=I2C_JOBS_INITIALISER;	//Defines the I2C transactions
 
 void Allocate_Sensor_Buffers(uint8_t samples){
@@ -23,8 +28,10 @@ void Allocate_Sensor_Buffers(uint8_t samples){
 	}
 	init_buffer(&(forehead_buffer.temp),samples);
 	for(uint8_t n=0;n<3;n++) {
-		init_buffer(&(forehead_buffer.accel[n]),samples);
-		init_buffer(&(forehead_buffer.gyro[n]),samples);
+		init_buffer(&(forehead_buffer.accel[n]),(samples*LSM330_ACCEL_RAW_SAMPLE_RATE)/100);
+		init_buffer(&(forehead_buffer.gyro[n]),(samples*LSM330_GYRO_RAW_SAMPLE_RATE)/100);//Use extra samples here to accomodate the higher sampling rate
+		SampleFilter_init_380(&LSM330_Gyro_Filter[n]);//Also initialise the downsampling filters for the Accel and gyro on the LSM330
+		SampleFilter_init_1350(&LSM330_Accel_Filter[n]);
 	}
 }
 
@@ -44,10 +51,6 @@ void Fill_Sample_Buffers(void) {
 		}
 		Add_To_Buffer(Flipedbytes(*(uint16_t*)&(Rawdata[4+3*m][0])),&(sfe_sensor_buffers[m].temp));//the temperature from the itg3200
 	}
-	//Add the lsm330 temperature sensor (this is only 8 bit output)	
+	//Add the LSM330 temperature sensor (this is only 8 bit output)	- other LSM330 sensor data is added directly from callbacks
 	Add_To_Buffer((uint16_t)Rawdata[1][0],&(forehead_buffer.temp));
-	for(uint8_t n=0;n<3;n++) {
-		Add_To_Buffer(*(uint16_t*)&(Rawdata[0][2*n]),		&(forehead_buffer.accel[n]));
-		Add_To_Buffer(*(uint16_t*)&(Rawdata[1][2*n+2]),		&(forehead_buffer.gyro[n]));//+2 as we skip the temperature
-	}
 }

@@ -41,9 +41,10 @@ int main(void)
 {
 	uint32_t data_counter=0;			//used as data timestamp
 	uint8_t deadly_flashes=0,system_state=0,repetition_counter=0;
-	int16_t sensor_data;				//used for handling data passed back from sensors
+	int16_t sensor_data, sensor_raw_data[3]={};	//used for handling data passed back from sensors
 	int16_t sfe_sensor_ref_buff[2][3],sfe_sensor_ref_buff_old[2][3];//used to detect and fix I2C bus lockup
 	RTC_t RTC_time;
+	wave_stuffer Gyro_wav_stuffer={},Accel_wav_stuffer={};//Used to controlling wav file bit packing
 	SystemInit();					//Sets up the clk
 	setup_gpio();					//Initialised pins, and detects boot source
 	DBGMCU_Config(DBGMCU_IWDG_STOP, ENABLE);	//Watchdog stopped during JTAG halt
@@ -208,12 +209,28 @@ int main(void)
 		while(!bytes_in_buff(&(forehead_buffer.temp)))	//Wait for some data - as all the sensor reads are aligned, can just use this one sensor
 			__WFI();			//Sleep until something arrives
 		printf("%d.%02d,",data_counter/100,data_counter%100);//the timestamp
-		for(uint8_t n=0;n<3;n++) {
-			Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
+		while(bytes_in_buff(&(forehead_buffer.accel[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
+			for(uint8_t n=0;n<3;n++) {
+				Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
+				SampleFilter_put_1350(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
+				sensor_raw_data[n]=sensor_data;
+			}
+			write_wave_samples(&FATFS_wavfile_accel, 3, 12, &Accel_wav_stuffer, uint16_t* sensor_raw_data);//Put the raw data into the wav file
+		}
+		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
+			sensor_data=(uint16_t)SampleFilter_get_1350(&LSM330_Accel_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 		}
-		for(uint8_t n=0;n<3;n++) {
-			Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.gyro[n]));//Retrive one sample of data
+		while(bytes_in_buff(&(forehead_buffer.gyro[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
+			for(uint8_t n=0;n<3;n++) {
+				Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.gyro[n]));//Retrive one sample of data
+				SampleFilter_put_380(&LSM330_Gyro_Filter[n],(float)sensor_data);//Dump into the low pass filter
+				sensor_raw_data[n]=sensor_data;
+			}
+			write_wave_samples(&FATFS_wavfile_gyro, 3, 16, &Gyro_wav_stuffer, uint16_t* sensor_raw_data);//Put the raw data into the wav file
+		}
+		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
+			sensor_data=(uint16_t)SampleFilter_get_380(&LSM330_Gyro_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 		}
 		Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.temp));//Retrive one sample of data
@@ -253,11 +270,9 @@ int main(void)
 		}
 		data_counter++;				//Counts up for use as a timestamp
 		//Deal with file size - may need to preallocate some more
-		if(f_size(&FATFS_logfile)-f_tell(&FATFS_logfile)<(PRE_SIZE/2)) {//More than half way through the pre-allocated area
-			DWORD size=f_tell(&FATFS_logfile);
-			f_lseek(&FATFS_logfile, f_size(&FATFS_logfile)+PRE_SIZE);//preallocate another PRE_SIZE
-			f_lseek(&FATFS_logfile, size);	//Seek back to where we were before
-		}
+		file_preallocation_control(&FATFS_logfile);
+		file_preallocation_control(&FATFS_wavfile_accel);
+		file_preallocation_control(&FATFS_wavfile_gyro);
 		if(Millis%1000>500)			//1Hz on/off flashing
 			switch_leds_on();		//Flash the LED(s)
 		else
@@ -287,6 +302,19 @@ void __str_print_char(char c) {
 	uint8_t a=strlen(print_string)%255;		//Make sure we cant overwrite ram
 	print_string[a]=c;				//Append string
 	print_string[a+1]=0x00;				//Null terminate
+}
+
+/**
+  * @brief  Ensures that we have significant preallocation on a file, useful to avoid significant delays on write
+  * @param  Pointer to the file
+  * @retval None
+  */
+void file_preallocation_control(FIL* file) {
+	if(f_size(file)-f_tell(file)<(PRE_SIZE/2)) {//More than half way through the pre-allocated area
+		DWORD size=f_tell(file);
+		f_lseek(file, f_size(file)+PRE_SIZE);//preallocate another PRE_SIZE
+		f_lseek(file, size);	//Seek back to where we were before
+	}
 }
 
 /**
