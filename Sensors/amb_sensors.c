@@ -11,7 +11,7 @@ const uint8_t HMC_config[]=HMC_CONFIG;
 const uint8_t ITG3200_config[]=ITG3200_CONFIG;
 
 volatile uint8_t LSM330_Accel_Reads;		//FIFO reads used to set number of consecutive FIFO reads to empty buffer
-volatile uint8_t LSM330_Gyros_Reads;		//This is set from the systick ISR, keeping the samples syncronised with the system time, so no clock squew
+volatile uint8_t LSM330_Gyro_Reads;		//This is set from the systick ISR, keeping the samples syncronised with the system time, so no clock squew
 
 SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];//Filters used for downsampling the forehead sensor to 100Sps
 

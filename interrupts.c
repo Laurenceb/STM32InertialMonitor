@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "interrupts.h"
+#include "Sensors/amb_sensors.h"
 
 volatile uint8_t Button_hold_tim;				//Timer for On/Off/Control button functionality
 volatile float Battery_Voltage;					//Battery voltage read from systick
@@ -91,12 +92,12 @@ void EXTI0_IRQHandler(void) {
 		EXTI_ClearITPendingBit(EXTI_Line0);
 		if(USB_SOURCE!=bootsource && GET_CHRG_STATE) {	//Interrupt due to USB insertion - reset to usb mode
 			if(file_opened)
-				shutdown_filesystem();
+				shutdown_filesystem(1,file_opened);
 			NVIC_SystemReset();			//Software reset of the system - USB inserted whilst running
 		}
 		if(USB_SOURCE==bootsource) {
 			if(file_opened) 
-				shutdown_filesystem();
+				shutdown_filesystem(1,file_opened);
 			red_flash();				//Flash red led - provides some debouncing on jack removal
 			shutdown();				//Shuts down - only wakes up on power pin i.e. WKUP
 		}
@@ -115,12 +116,7 @@ void EXTI0_IRQHandler(void) {
 void ADC1_2_IRQHandler(void) {
 	if(ADC_GetITStatus(ADC2, ADC_IT_AWD)) {			//Analogue watchdog was triggered
 		if(file_opened) {
-			char c[]="\r\nLow Battery\r\n";
-			uint8_t a;
-			f_write(&FATFS_logfile,c,sizeof(c),&a);	//Write the error to the file
-			f_sync(&FATFS_logfile);			//Flush buffers
-			f_truncate(&FATFS_logfile);		//Truncate the lenght - fix pre allocation
-			f_close(&FATFS_logfile);		//Close any opened file
+			shutdown_filesystem(0,file_opened);
 		}
 		red_flash();					//Flash red led
 		shutdown();					//Shutdown to save battery
@@ -166,7 +162,7 @@ void SysTickHandler(void)
 		//First read the sensor buffers into the data sample buffers
 		Fill_Sample_Buffers();
 		//Calculate the number of FIFO reads for this iteration
-		acc_samples+=LSM330_ACC_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
+		acc_samples+=LSM330_ACCEL_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
 		LSM330_Accel_Reads=(acc_samples-old_acc_samples)/10;//Number of consecutive reads
 		old_acc_samples=acc_samples;
 		gyro_samples+=LSM330_GYRO_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
@@ -180,7 +176,7 @@ void SysTickHandler(void)
 	if(Button_hold_tim ) {					//If a button press generated timer has been triggered
 		if(GPIO_ReadInputDataBit(GPIOA,WKUP)) {		//Button hold turns off the device
 			if(!--Button_hold_tim) {
-				shutdown_filesystem();
+				shutdown_filesystem(1,file_opened);
 				shutdown();			//Turn off the logger after closing any open files
 			}
 		}

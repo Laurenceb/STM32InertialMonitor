@@ -4,6 +4,7 @@
 #include "gpio.h"
 #include "Util/delay.h"
 #include "Sensors/amb_sensors.h"
+#include "main.h"
 
 //Globals for the driver
 volatile uint32_t Jobs,Completed_Jobs;	//used for task control (only ever access this from outside for polling Jobs/Reading Completed_Jobs)

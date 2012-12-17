@@ -23,7 +23,7 @@ sampling frequency: 1350 Hz
 #define SAMPLEFILTER_TAP_NUM_1350 95
 #ifndef SampleFilter
 typedef struct {
-  float history[SAMPLEFILTER_TAP_NUM];
+  float history[SAMPLEFILTER_TAP_NUM_1350];
   unsigned int last_index;
 } SampleFilter;
 #endif

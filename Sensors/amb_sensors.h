@@ -1,6 +1,9 @@
 #pragma once
 #include "../Util/buffer.h"
 #include "../i2c_int.h"
+#include "../Util/filter_1350.h"
+#include "../Util/filter_380.h"
+
 typedef struct{
 	buff_type accel[3],magno[3],gyro[3],temp;
 }	Sparkfun_9DOF_buff;
@@ -73,7 +76,9 @@ enum{LSM330_ACCEL_CONFIG_JOB=SFE_2_GYRO+1,LSM330_GYRO_CONFIG_JOB,ADXL_CONFIG_JOB
 extern I2C_Job_Type I2C_jobs[];
 
 extern volatile uint8_t LSM330_Accel_Reads;
-extern volatile uint8_t LSM330_Gyros_Reads;
+extern volatile uint8_t LSM330_Gyro_Reads;
+
+extern volatile uint8_t Rawdata[8][8];
 
 extern SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];
 

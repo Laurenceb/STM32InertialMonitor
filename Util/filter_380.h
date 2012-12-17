@@ -23,11 +23,13 @@ sampling frequency: 380 Hz
 #define SAMPLEFILTER_TAP_NUM_380 29
 #ifndef SampleFilter
 typedef struct {
-  float history[SAMPLEFILTER_TAP_NUM];
+  float history[SAMPLEFILTER_TAP_NUM_380];
   unsigned int last_index;
 } SampleFilter;
 #endif
 void SampleFilter_init_380(SampleFilter* f);
 void SampleFilter_put_380(SampleFilter* f, float input);
 float SampleFilter_get_380(SampleFilter* f);
+
+#endif
 

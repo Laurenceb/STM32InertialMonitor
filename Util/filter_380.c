@@ -48,7 +48,7 @@ void SampleFilter_put_380(SampleFilter* f, float input) {
 float SampleFilter_get_380(SampleFilter* f) {
   float acc = 0;
   int index = f->last_index, i;
-  for(i = 0; i < SAMPLEFILTER_TAP_NUM; ++i) {
+  for(i = 0; i < SAMPLEFILTER_TAP_NUM_380; ++i) {
     index = index != 0 ? index-1 : SAMPLEFILTER_TAP_NUM_380-1;
     acc += f->history[index] * filter_taps[i];
   };

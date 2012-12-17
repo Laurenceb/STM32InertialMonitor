@@ -6,21 +6,22 @@
   * @retval Result of file write operation
   */
 FRESULT write_wave_header(FIL* file, uint8_t number_channels, uint16_t sample_rate, uint8_t bits_per_sample) {
-	struct header {
-		uint8_t Chunkid[]={'R','I','F','F'};//RIFF header
-		uint8_t Chunksize[]={0xFF,0xFF,0xFF,0xFF};//Use a stupidly large chunk size, technically this means a corrupt file, 
-		uint8_t Format[]={'W','A','V','E'};//but its simple and works (with octave)
-		uint8_t Subchunk1id[]={'f','m','t',' '};
-		uint8_t Subchunk1size[]={0x10,0x00,0x00,0x00};
-		uint8_t Audioformat[]={0x01,0x00};//Format 1 is PCM
-		uint8_t Numchannels[2]={};	//Number of audio channels
-		uint8_t Samplerate[4]={};	//Sample rate in samples per second
-		uint8_t Byterate[4]={};		//Rate in bytes per second
-		uint8_t Blockalign[2]={};	//Number of bytes for a block of channel samples
-		uint8_t Bitspersample[2]={};	//Bits in a single sample
-		uint8_t Subchunk2id={'d','a','t','a'};
-		uint8_t Subchunk2size={0xDF,0xFF,0xFF,0xFF};//Use largest chunk size
-	}
+	struct {
+		uint8_t Chunkid[4];	//RIFF header
+		uint8_t Chunksize[4];	//Use a stupidly large chunk size, technically this means a corrupt file, 
+		uint8_t Format[4];	//but its simple and works (with octave)
+		uint8_t Subchunk1id[4];
+		uint8_t Subchunk1size[4];
+		uint8_t Audioformat[2];	//Format 1 is PCM
+		uint8_t Numchannels[2];	//Number of audio channels
+		uint8_t Samplerate[4];	//Sample rate in samples per second
+		uint8_t Byterate[4];	//Rate in bytes per second
+		uint8_t Blockalign[2];	//Number of bytes for a block of channel samples
+		uint8_t Bitspersample[2];//Bits in a single sample
+		uint8_t Subchunk2id[4];
+		uint8_t Subchunk2size[4];//Use largest chunk size
+	} header= {{'R','I','F','F'},{0xFF,0xFF,0xFF,0xFF},{'W','A','V','E'},{'f','m','t',' '},{0x10,0x00,0x00,0x00},{0x01,0x00},{},{},{},{},{},\
+			{'d','a','t','a'},{0xDF,0xFF,0xFF,0xFF}};
 	header.Numchannels[0]=number_channels;
 	*(uint16_t*)&(header.Samplerate)=sample_rate;//Works on little endian machines
 	*(uint16_t*)&(header.Byterate)=(sample_rate*bits_per_sample*number_channels)/8;

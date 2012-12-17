@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 #include "stm32f10x.h"
 #include "main.h"
 #include "adc.h"
@@ -10,6 +11,9 @@
 #include "Util/delay.h"
 #include "Sensors/amb_sensors.h"
 #include "usb_lib.h"
+#include "Util/wave.h"
+#include "Util/filter_1350.h"
+#include "Util/filter_380.h"
 #include "Util/USB/hw_config.h"
 #include "Util/USB/usb_pwr.h"
 #include "Util/fat_fs/inc/diskio.h"
@@ -33,7 +37,7 @@ volatile Forehead_sensor_buff forehead_buffer;		//Data from forehead sensors
 //FatFs filesystem globals go here
 FRESULT f_err_code;
 static FATFS FATFS_Obj;
-FIL FATFS_logfile;
+FIL FATFS_logfile, FATFS_wavfile_accel, FATFS_wavfile_gyro;
 FILINFO FATFS_info;
 //volatile int bar[3] __attribute__ ((section (".noinit"))) ;//= 0xaa
 
@@ -44,7 +48,7 @@ int main(void)
 	int16_t sensor_data, sensor_raw_data[3]={};	//used for handling data passed back from sensors
 	int16_t sfe_sensor_ref_buff[2][3],sfe_sensor_ref_buff_old[2][3];//used to detect and fix I2C bus lockup
 	RTC_t RTC_time;
-	wave_stuffer Gyro_wav_stuffer={},Accel_wav_stuffer={};//Used to controlling wav file bit packing
+	wave_stuffer Gyro_wav_stuffer={0,0},Accel_wav_stuffer={0,0};//Used to controlling wav file bit packing
 	SystemInit();					//Sets up the clk
 	setup_gpio();					//Initialised pins, and detects boot source
 	DBGMCU_Config(DBGMCU_IWDG_STOP, ENABLE);	//Watchdog stopped during JTAG halt
@@ -92,7 +96,7 @@ int main(void)
 		do {
 			battery_voltage=Battery_Voltage;//Have to flush adc for some reason
 			Delay(25000);
-		} while(abs(Battery_Voltage-battery_voltage)>0.01 || !battery_voltage);
+		} while(fabs(Battery_Voltage-battery_voltage)>0.01 || !battery_voltage);
 		I2C_Config();				//Setup the I2C bus
 		Sensors=detect_sensors(0);		//Search for connected sensors
 		if(battery_voltage<BATTERY_STARTUP_LIMIT)
@@ -135,12 +139,42 @@ int main(void)
 			rtc_gettime(&RTC_time);		//Get the RTC time and put a timestamp on the start of the file
 			rprintfInit(__str_print_char);	//Print to the string
 			//timestamp name
-			printf("%d-%02d-%02dT%02d-%02d-%02d.txt",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);
+			printf("%d-%02d-%02dT%02d-%02d-%02d",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);
 			rprintfInit(__usart_send_char);	//Printf over the bluetooth
-			if((f_err_code=f_open(&FATFS_logfile,print_string,FA_CREATE_ALWAYS | FA_WRITE))) {//Present
+			f_err_code = f_mkdir(print_string); //Try to make a directory where the logfiles will live
+			if(f_err_code) {
 				printf("FatFs drive error %d\r\n",f_err_code);
 				if(f_err_code==FR_DISK_ERR || f_err_code==FR_NOT_READY)
 					Usart_Send_Str((char*)"No uSD card inserted?\r\n");
+				repetition_counter=1;
+			}
+			else {
+				strcat(print_string,".csv");
+				f_err_code=f_open(&FATFS_logfile,print_string,FA_CREATE_ALWAYS | FA_WRITE);//Try to open the main 100sps csv logfile
+			}
+			if(f_err_code) {
+				if(!repetition_counter)
+					printf("FatFs drive error creating logfile %d\r\n",f_err_code);
+				repetition_counter=1;
+			}
+			else {	
+				print_string[strlen(print_string)-4]=0x00;	//Wipe the .csv off the string
+				strcat(print_string,"_accel.wav");
+				f_err_code=f_open(&FATFS_wavfile_accel,print_string,FA_CREATE_ALWAYS | FA_WRITE);//Try to open the accel wav logfile
+			}
+			if(f_err_code) {
+				if(!repetition_counter)
+					printf("FatFs drive error creating accel wav file %d\r\n",f_err_code);
+				repetition_counter=1;
+			}
+			else {	
+				print_string[strlen(print_string)-9]=0x00;	//Wipe the accel.wav off the string
+				strcat(print_string,"gyro.wav");
+				f_err_code=f_open(&FATFS_wavfile_gyro,print_string,FA_CREATE_ALWAYS | FA_WRITE);//Try to open the gyro wav logfile
+			}
+			if(f_err_code) {
+				if(!repetition_counter)
+					printf("FatFs drive error creating gyro wav file %d\r\n",f_err_code);
 			}
 			else {				//We have a mounted card
 				print_string[0]=0x00;	//Wipe the string
@@ -156,9 +190,40 @@ int main(void)
 				if(f_err_code)
 					f_close(&FATFS_logfile);//Close the already opened file on error
 				else
-					file_opened=1;	//So we know to close the file properly on shutdown
+					file_opened=0x01;//So we know to close the file properly on shutdown - bit mask for the files
+				if(!f_err_code) {
+					f_err_code=f_lseek(&FATFS_wavfile_accel, PRE_SIZE);// Pre-allocate clusters
+					if (f_err_code || f_tell(&FATFS_wavfile_accel) != PRE_SIZE)// Check if the file size has been increased correctly
+						Usart_Send_Str((char*)"Pre-Allocation error\r\n");
+					else {
+						if((f_err_code=f_lseek(&FATFS_wavfile_accel, 0)))//Seek back to start of file to start writing
+							Usart_Send_Str((char*)"Seek error\r\n");
+						else
+							rprintfInit(__str_print_char);//Printf to the logfile
+					}
+					if(f_err_code)
+						f_close(&FATFS_wavfile_accel);//Close the already opened file on error
+					else
+						file_opened|=0x02;//So we know to close the file properly on shutdown - bit mask for the files
+				}
+				if(!f_err_code) {
+					f_err_code=f_lseek(&FATFS_wavfile_gyro, PRE_SIZE);// Pre-allocate clusters
+					if (f_err_code || f_tell(&FATFS_wavfile_gyro) != PRE_SIZE)// Check if the file size has been increased correctly
+						Usart_Send_Str((char*)"Pre-Allocation error\r\n");
+					else {
+						if((f_err_code=f_lseek(&FATFS_wavfile_gyro, 0)))//Seek back to start of file to start writing
+							Usart_Send_Str((char*)"Seek error\r\n");
+						else
+							rprintfInit(__str_print_char);//Printf to the logfile
+					}
+					if(f_err_code)
+						f_close(&FATFS_wavfile_gyro);//Close the already opened file on error
+					else
+						file_opened|=0x04;//So we know to close the file properly on shutdown - bit mask for the files
+				}
 			}
-		}	
+		}
+		repetition_counter=0;			//Reset this here	
 		//We die, but flash out a number of flashes first
 		if(f_err_code || deadly_flashes) {	//There was an init error
 			for(;deadly_flashes;deadly_flashes--) {
@@ -215,7 +280,7 @@ int main(void)
 				SampleFilter_put_1350(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
 				sensor_raw_data[n]=sensor_data;
 			}
-			write_wave_samples(&FATFS_wavfile_accel, 3, 12, &Accel_wav_stuffer, uint16_t* sensor_raw_data);//Put the raw data into the wav file
+			write_wave_samples(&FATFS_wavfile_accel, 3, 12, &Accel_wav_stuffer,(uint16_t*)sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
 			sensor_data=(uint16_t)SampleFilter_get_1350(&LSM330_Accel_Filter[n]);
@@ -227,7 +292,7 @@ int main(void)
 				SampleFilter_put_380(&LSM330_Gyro_Filter[n],(float)sensor_data);//Dump into the low pass filter
 				sensor_raw_data[n]=sensor_data;
 			}
-			write_wave_samples(&FATFS_wavfile_gyro, 3, 16, &Gyro_wav_stuffer, uint16_t* sensor_raw_data);//Put the raw data into the wav file
+			write_wave_samples(&FATFS_wavfile_gyro, 3, 16, &Gyro_wav_stuffer, (uint16_t*) sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
 			sensor_data=(uint16_t)SampleFilter_get_380(&LSM330_Gyro_Filter[n]);

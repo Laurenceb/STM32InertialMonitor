@@ -7,7 +7,7 @@
 #define BATTERY_ADC_CHAN 9	/* The battery voltage monitoring (alternatively third sensor input)*/
 #define ADC_BUFF_SIZE ADC_BUFFER_SIZE	/* 64 samples * 2 for interleaving, * 2bytes/sample==256 */
 
-#define CORRECTION_FACTOR (4.48/4.12)
+#define CORRECTION_FACTOR (4.10/4.12)
 #define SAMPLING_FACTOR	(4096.0/6.6)*CORRECTION_FACTOR/* 1/2 factor pot divider on the frontend board */
 #define MINIMUM_VOLTAGE 3.0	/* A single lithium polymer cell*/
 

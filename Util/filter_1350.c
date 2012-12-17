@@ -114,7 +114,7 @@ void SampleFilter_put_1350(SampleFilter* f, float input) {
 float SampleFilter_get_1350(SampleFilter* f) {
   float acc = 0;
   int index = f->last_index, i;
-  for(i = 0; i < SAMPLEFILTER_TAP_NUM; ++i) {
+  for(i = 0; i < SAMPLEFILTER_TAP_NUM_1350; ++i) {
     index = index != 0 ? index-1 : SAMPLEFILTER_TAP_NUM_1350-1;
     acc += f->history[index] * filter_taps[i];
   };

@@ -40,4 +40,4 @@ extern volatile Sparkfun_9DOF_buff sfe_sensor_buffers[2];//Data from sparkfun se
 extern volatile Forehead_sensor_buff forehead_buffer;	//Data from forehead sensors
 //fatfs globals
 extern volatile uint8_t file_opened;
-extern FIL FATFS_logfile;
+extern FIL FATFS_logfile, FATFS_wavfile_accel, FATFS_wavfile_gyro;
