@@ -274,7 +274,7 @@ void I2C_Config() {			//Configure I2C1 for the sensor bus
 	I2C_InitStructure.I2C_OwnAddress1 = 0xAD;//0xAM --> ADAM
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
 	I2C_InitStructure.I2C_AcknowledgedAddress= I2C_AcknowledgedAddress_7bit;
-	I2C_InitStructure.I2C_ClockSpeed = 80000;
+	I2C_InitStructure.I2C_ClockSpeed = 200000;//80000;
 	//Assert the bus
 	GPIO_InitTypeDef	GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE;
