@@ -38,11 +38,11 @@ FRESULT write_wave_header(FIL* file, uint8_t number_channels, uint16_t sample_ra
   * @retval Result of file write operation
   */
 FRESULT write_wave_samples(FIL* file, uint8_t number_channels, uint8_t bits_per_sample, wave_stuffer* this_stuffer, uint16_t* data) {
-	uint8_t write_buffer[25];		//Limited size here, but enough for 6 channels of 32bit data
+	uint8_t write_buffer[25]={};		//Limited size here, but enough for 6 channels of 32bit data
 	write_buffer[0]=this_stuffer->lastbyte;	//Recover any data that was overhanding from the last write
 	uint8_t offset_in_bits=this_stuffer->index;//This variable holds our index into the write buffer in units of bits
 	for(uint8_t n=0;n<number_channels;n++) {
-		*(uint32_t*)&write_buffer[offset_in_bits/8]=(uint32_t)(data[n]&(uint16_t)((uint32_t)(0x00000001<<bits_per_sample)-1))<<offset_in_bits%8;
+		*(uint32_t*)&write_buffer[offset_in_bits/8]|=(uint32_t)(data[n]&(uint16_t)((uint32_t)(0x00000001<<bits_per_sample)-1))<<offset_in_bits%8;
 		offset_in_bits+=bits_per_sample;
 	}
 	this_stuffer->index=offset_in_bits%8;	//The new bit overhang
