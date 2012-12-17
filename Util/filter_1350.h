@@ -1,5 +1,5 @@
-#ifndef SAMPLEFILTER_H_
-#define SAMPLEFILTER_H_
+#ifndef SAMPLEFILTER_H_1350
+#define SAMPLEFILTER_H_1350
 
 /*
 
@@ -21,7 +21,8 @@ sampling frequency: 1350 Hz
 */
 
 #define SAMPLEFILTER_TAP_NUM_1350 95
-#ifndef SampleFilter
+#ifndef SAMPLEFILTER
+#define SAMPLEFILTER
 typedef struct {
   float history[SAMPLEFILTER_TAP_NUM_1350];
   unsigned int last_index;

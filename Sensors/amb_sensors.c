@@ -5,7 +5,9 @@
 volatile uint8_t Rawdata[8][8];			//This is an array for 8 sensors, each one having up to 8 (4*16bit) bytes of data per sample
 
 const uint8_t LSM_330_ACCEL_config[]=LSM_330_ACCEL_CONFIG;//Config arrays for the sensors
+const uint8_t LSM_330_ACCEL_FIFO_config[]=LSM_330_ACCEL_FIFO_CONFIG;
 const uint8_t LSM_330_GYRO_config[]=LSM_330_GYRO_CONFIG;
+const uint8_t LSM_330_GYRO_FIFO_config[]=LSM_330_GYRO_FIFO_CONFIG;
 const uint8_t ADXL_config[]=ADXL_CONFIG;
 const uint8_t HMC_config[]=HMC_CONFIG;
 const uint8_t ITG3200_config[]=ITG3200_CONFIG;
