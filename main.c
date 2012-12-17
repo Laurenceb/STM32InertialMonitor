@@ -148,6 +148,13 @@ int main(void)
 					Usart_Send_Str((char*)"No uSD card inserted?\r\n");
 				repetition_counter=1;
 			}
+			else
+				f_err_code=f_chdir(print_string);//enter our new directory
+			if(f_err_code) {
+				if(!repetition_counter)
+					printf("FatFs drive error entering direcotry %d\r\n",f_err_code);
+				repetition_counter=1;
+			}
 			else {
 				strcat(print_string,".csv");
 				f_err_code=f_open(&FATFS_logfile,print_string,FA_CREATE_ALWAYS | FA_WRITE);//Try to open the main 100sps csv logfile
