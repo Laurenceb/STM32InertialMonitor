@@ -22,6 +22,8 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 				(1<<LSM330_GYRO_FIFO_JOB)|(1<<ADXL_CONFIG_JOB)|(1<<HMC_CONFIG_JOB)|(1<<ITG3200_CONFIG_JOB))
 #define SCHEDULE_CONFIG_SECOND_BUS (uint32_t)((1<<ADXL_CONFIG_JOB)|(1<<HMC_CONFIG_JOB)|(1<<ITG3200_CONFIG_JOB))
 
+#define LAST_JOB ITG3200_CONFIG_JOB
+
 //All the sensors are configured for 100Hz data output
 
 #define LSM_330_ACCEL_ADDR 0x30					/*this will be 0x32 if address pin is floating*/

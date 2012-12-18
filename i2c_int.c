@@ -153,8 +153,13 @@ void I2C1_EV_IRQHandler(void) {
 		}
 		if(job==SFE_1_GYRO) {
 			Jobs|=SECOND_BUS_READS;
-			//while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear
-			Remap();//this is very bodgey, but should remap at this points to talk to the other bus
+			while(I2C1->CR1 & 0x0300);			//Wait for stop/start bits to clear
+			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+			asm volatile ("dmb" ::: "memory");
+			Remap();					//Remap i2c to bus2 - now handled in the isr
+			asm volatile ("dmb" ::: "memory");
+			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+			asm volatile ("dmb" ::: "memory");
 		}
 		//End of completion tasks
 		Completed_Jobs|=(0x00000001<<job);//These can be polled by other tasks to see if a job has been completed or is scheduled 
@@ -175,7 +180,13 @@ void I2C1_EV_IRQHandler(void) {
 		else if(final_stop) {	//If there is a final stop and no more jobs, bus is inactive, disable interrupts to prevent BTF
 			I2C_ITConfig(I2C1, I2C_IT_EVT|I2C_IT_ERR, DISABLE);//Disable EVT and ERR interrupts while bus inactive
 			//while(I2C1->CR1&0x0200){;}//doesnt seem to be a better way to do this, must wait for stop to clear to correct second bus state
+			while(I2C1->CR1 & 0x0300);			//Wait for stop/start bits to clear
+			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+			asm volatile ("dmb" ::: "memory");
 			Unremap();	//This will mark the end of the reads
+			asm volatile ("dmb" ::: "memory");
+			Delay(100);
+			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
 		}
 	}
 }

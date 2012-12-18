@@ -29,7 +29,7 @@ UINT a;							//File bytes counter
 volatile uint32_t Millis;				//System uptime (rollover after 50 days)
 volatile uint8_t System_state_Global;			//Stores the system state, controlled by the button, most significant bit is a flag
 volatile uint8_t Sensors;				//Global holding a mask of the sensors found by automatic sensor discovery
-uint8_t Sensor_Cable;					//ID for the attached cable
+volatile uint8_t Sensor_Cable;					//ID for the attached cable
 volatile float battery_voltage;				//Used to flush the adc
 //Sensor buffers to pass data back to logger
 volatile Sparkfun_9DOF_buff sfe_sensor_buffers[2];	//Data from sparkfun sensors
@@ -250,10 +250,14 @@ int main(void)
 	printf("%d-%02d-%02dT%02d:%02d:%02d\n",RTC_time.year,RTC_time.month,RTC_time.mday,RTC_time.hour,RTC_time.min,RTC_time.sec);
 	printf("Battery: %3fV\n",Battery_Voltage);	//Get the battery voltage using blocking regular conversion and print
 	printf("Sensor Cable ID is:%d\n",Sensor_Cable);	//Print the sensor cable ID in the header
-	if(file_opened) {
+	if(file_opened & 0x01) {
 		f_puts(print_string,&FATFS_logfile);
 		print_string[0]=0x00;			//Set string length to 0
 	}
+	if(file_opened&0x02)
+		write_wave_header(&FATFS_wavfile_accel, 3, LSM330_ACCEL_RAW_SAMPLE_RATE, 16);//Have to use 16bit as only PCM is supported by matlab/octave
+	if(file_opened&0x04)
+		write_wave_header(&FATFS_wavfile_gyro, 3, LSM330_GYRO_RAW_SAMPLE_RATE, 16);
 	Millis=0;					//Reset system uptime, we have 50 days before overflow
 	I2C1error.error=0;
 	while (1) {
@@ -287,10 +291,10 @@ int main(void)
 				SampleFilter_put_1350(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
 				sensor_raw_data[n]=sensor_data;
 			}
-			write_wave_samples(&FATFS_wavfile_accel, 3, 12, &Accel_wav_stuffer,(uint16_t*)sensor_raw_data);//Put the raw data into the wav file
+			write_wave_samples(&FATFS_wavfile_accel, 3, 16, &Accel_wav_stuffer,(uint16_t*)sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
-			sensor_data=(uint16_t)SampleFilter_get_1350(&LSM330_Accel_Filter[n]);
+			sensor_data=(int16_t)SampleFilter_get_1350(&LSM330_Accel_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 		}
 		while(bytes_in_buff(&(forehead_buffer.gyro[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
@@ -302,7 +306,7 @@ int main(void)
 			write_wave_samples(&FATFS_wavfile_gyro, 3, 16, &Gyro_wav_stuffer, (uint16_t*) sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
-			sensor_data=(uint16_t)SampleFilter_get_380(&LSM330_Gyro_Filter[n]);
+			sensor_data=(int16_t)SampleFilter_get_380(&LSM330_Gyro_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 		}
 		Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.temp));//Retrive one sample of data
@@ -408,16 +412,24 @@ uint8_t detect_sensors(uint8_t noini) {
 	if(I2C1error.job == LSM330_ACCEL_CONFIG_JOB) {	//The accel address is different on differing versions of the sensor cable
 		I2C_jobs[FOREHEAD_ACCEL].address = LSM_330_ACCEL_ADDR|0x02;
 		I2C_jobs[LSM330_ACCEL_CONFIG_JOB].address = LSM_330_ACCEL_ADDR|0x02;//Change the addresses on the forehead accel
+		I2C_jobs[LSM330_ACCEL_FIFO_JOB].address = LSM_330_ACCEL_ADDR|0x02;
+		Sensor_Cable=0x01;			//This cable id functionality could be extended if future adding i2c EEPROM for example
+		Jobs|=(1<<LSM330_ACCEL_FIFO_JOB);
 		I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
 		millis=Millis;
-		while(Jobs) {				//Wait for completion
+		while(Jobs) {;				//Wait for completion
 			if(Millis>(millis+20))
 				return 0;
 		}
 		jobs_completed |= Completed_Jobs;
-		Sensor_Cable=0x01;			//This cable id functionality could be extended if future adding i2c EEPROM for example
 	}
-	Remap();					//Remap i2c to bus2
+	while(I2C1->CR1 & 0x0300);			//Wait for stop/start bits to clear
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+	asm volatile ("dmb" ::: "memory");
+	Remap();					//Remap i2c to bus2 - now handled in the isr
+	asm volatile ("dmb" ::: "memory");
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+	asm volatile ("dmb" ::: "memory");
 	Jobs=SCHEDULE_CONFIG_SECOND_BUS;		//Run the I2C devices config on second bus
 	I2C1_Request_Job(ADXL_CONFIG_JOB);		//Restart i2c by calling this
 	millis=Millis;
@@ -425,7 +437,8 @@ uint8_t detect_sensors(uint8_t noini) {
 		if(Millis>(millis+20))
 			return 0;
 	}
-	sensors=(jobs_completed>>LSM330_ACCEL_CONFIG_JOB)&0x1F;//shift this to set the sensor detected bits
+	sensors=(jobs_completed>>LSM330_GYRO_CONFIG_JOB)&0x1E;//shift this to set the sensor detected bits
+	sensors|=(jobs_completed>>LSM330_ACCEL_CONFIG_JOB)&0x01;
 	sensors|=((Completed_Jobs)>>(ADXL_CONFIG_JOB-SFE_2_ACCEL))&0xE0;
 	if(sensors==0xFF && !noini) {			//All sensors found ok and we are allowed to initialise the buffers
 		Allocate_Sensor_Buffers(50);		//Calls sensor function to allocate buffers - enough for 0.5s of data

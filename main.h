@@ -14,6 +14,8 @@ extern volatile uint32_t Millis;
 extern volatile uint8_t System_state_Global;
 extern volatile uint8_t Sensors;
 
+extern volatile uint8_t Sensor_Cable;
+
 #define PRE_SIZE 1000000ul	/*Preallocate size*/
 
 #define SYSTEM_STATES 4		/*Number of different control states- atm just four status codes implimented*/

@@ -25,7 +25,7 @@ extern volatile I2C_Error_Type I2C1error;	//used to store error state
 //Macros
 
 //Number of jobs
-#define I2C_NUMBER_JOBS 13		/*the config jobs are shared - bus switch is done outside the driver*/
+#define I2C_NUMBER_JOBS (LAST_JOB+1)	/*the config jobs are shared - bus switch is done outside the driver*/
 
 //Function prototypes
 void I2C1_Request_Job(uint8_t job_);//Requests a job

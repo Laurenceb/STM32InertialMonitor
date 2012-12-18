@@ -20,8 +20,8 @@ FRESULT write_wave_header(FIL* file, uint8_t number_channels, uint16_t sample_ra
 		uint8_t Bitspersample[2];//Bits in a single sample
 		uint8_t Subchunk2id[4];
 		uint8_t Subchunk2size[4];//Use largest chunk size
-	} header= {{'R','I','F','F'},{0xFF,0xFF,0xFF,0xFF},{'W','A','V','E'},{'f','m','t',' '},{0x10,0x00,0x00,0x00},{0x01,0x00},{},{},{},{},{},\
-			{'d','a','t','a'},{0xDF,0xFF,0xFF,0xFF}};
+	} header= {{'R','I','F','F'},{0xFF,0xFF,0xFF,0x04},{'W','A','V','E'},{'f','m','t',' '},{0x10,0x00,0x00,0x00},{0x01,0x00},{},{},{},{},{},\
+			{'d','a','t','a'},{0xDF,0xFF,0xFF,0x04}};
 	header.Numchannels[0]=number_channels;
 	*(uint16_t*)&(header.Samplerate)=sample_rate;//Works on little endian machines
 	*(uint16_t*)&(header.Byterate)=(sample_rate*bits_per_sample*number_channels)/8;
@@ -42,7 +42,7 @@ FRESULT write_wave_samples(FIL* file, uint8_t number_channels, uint8_t bits_per_
 	write_buffer[0]=this_stuffer->lastbyte;	//Recover any data that was overhanding from the last write
 	uint8_t offset_in_bits=this_stuffer->index;//This variable holds our index into the write buffer in units of bits
 	for(uint8_t n=0;n<number_channels;n++) {
-		*(uint32_t*)&write_buffer[offset_in_bits/8]|=(uint32_t)(data[n]&(uint16_t)((uint32_t)(0x00000001<<bits_per_sample)-1))<<offset_in_bits%8;
+		*(uint32_t*)&write_buffer[offset_in_bits/8]|=(uint32_t)(data[n]&(uint16_t)((uint32_t)(0x00000001<<bits_per_sample)-1))<<(offset_in_bits%8);
 		offset_in_bits+=bits_per_sample;
 	}
 	this_stuffer->index=offset_in_bits%8;	//The new bit overhang
