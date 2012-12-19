@@ -9,3 +9,4 @@ typedef struct {
 
 FRESULT write_wave_header(FIL* file, uint8_t number_channels, uint16_t sample_rate, uint8_t bits_per_sample);
 FRESULT write_wave_samples(FIL* file, uint8_t number_channels, uint8_t bits_per_sample, wave_stuffer* this_stuffer, uint16_t* data);
+FRESULT wave_terminate(FIL* file);

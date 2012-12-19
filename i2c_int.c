@@ -134,19 +134,19 @@ void I2C1_EV_IRQHandler(void) {
 				I2C_ITConfig(I2C1, I2C_IT_BUF, DISABLE);//disable TXE to allow the buffer to flush
 		}
 	}
-	if((I2C_jobs[job].bytes+1)==index) {//we have completed the current job
-		Jobs&=~(0x00000001<<job);//tick off current job as complete
+	if((I2C_jobs[job].bytes+1)==index) {	//we have completed the current job
+		Jobs&=~(0x00000001<<job);	//tick off current job as complete
 		//Completion Tasks go here
-		if(job==FOREHEAD_ACCEL && LSM330_Accel_Reads) {//Forehead accel is read multiple times
-			LSM330_Accel_Reads--;//wipe off the number of reads
-			Jobs|=0x00000001<<job;//reset the job
+		if(job==FOREHEAD_ACCEL) {	//Forehead accel is read multiple times
+			if(--LSM330_Accel_Reads)//wipe off the number of reads
+				Jobs|=0x00000001<<job;//reset the job
 			//Add the data to the buffer from here
 			for(uint8_t n=0;n<3;n++)
 				Add_To_Buffer(*(uint16_t*)&(Rawdata[0][2*n]),		&(forehead_buffer.accel[n]));
 		}
-		if(job==FOREHEAD_GYRO && LSM330_Gyro_Reads) {//Forehead gyro is also read multiple times
-			LSM330_Gyro_Reads--;//wipe off the number of reads
-			Jobs|=0x00000001<<job;//reset the job
+		if(job==FOREHEAD_GYRO) {	//Forehead gyro is also read multiple times
+			if(--LSM330_Gyro_Reads)	//wipe off the number of reads
+				Jobs|=0x00000001<<job;//reset the job
 			//Add the data to the buffer from here
 			for(uint8_t n=0;n<3;n++)
 				Add_To_Buffer(*(uint16_t*)&(Rawdata[1][2*n+2]),		&(forehead_buffer.gyro[n]));//+2 as we skip the temperature
@@ -185,7 +185,7 @@ void I2C1_EV_IRQHandler(void) {
 			asm volatile ("dmb" ::: "memory");
 			Unremap();	//This will mark the end of the reads
 			asm volatile ("dmb" ::: "memory");
-			Delay(100);
+			Delay(50);
 			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
 		}
 	}

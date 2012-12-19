@@ -50,6 +50,31 @@ FRESULT write_wave_samples(FIL* file, uint8_t number_channels, uint8_t bits_per_
 	uint8_t bytes;
 	return f_write(file, write_buffer, offset_in_bits/8, &bytes);
 }
-		
 
+/**
+  * @brief  This function terminates a WAV file using FAT-FS
+  * @param  File pointer (file has already been opened)
+  * @retval Result of file operations
+  */		
+FRESULT wave_terminate(FIL* file) {
+	FRESULT res;
+	uint8_t b;
+	res=f_sync(file);			//Flush buffers
+	res|=f_truncate(file);			//Truncate the lenght - fix pre allocation
+	DWORD size=f_size(file);
+	DWORD subchunk=size;
+	if (size & (DWORD)0x01)	 {		//Odd number of bytes
+		uint8_t a=0;
+		res|=f_write(file,&a,1,&b);	//Pad end of file with 0x00
+		size++;				//New file size
+	}
+	res|=f_lseek(file,4);			//Seek to the chunk size
+	DWORD chunk=(size-8);
+	res|=f_write(file,&chunk,4,&b);
+	res|=f_lseek(file,40);			//Seek to subchunk2 size
+	chunk=subchunk-44;			//Size of the samples alone
+	res|=f_write(file,&chunk,4,&b);
+	f_sync(file);
+	f_close(file);				//Close any opened file
+}
 
