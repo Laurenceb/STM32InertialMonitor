@@ -111,11 +111,11 @@ int main(void)
 			deadly_flashes=5;
 		if(!(Sensors&(1<<SFE_1_GYRO)))
 			deadly_flashes=6;
-		if(!(Sensors&(1<<SFE_2_ACCEL)))
+		if(!(Sensors&(1<<(SFE_2_ACCEL-1))))
 			deadly_flashes=7;
-		if(!(Sensors&(1<<SFE_2_MAGNO)))
+		if(!(Sensors&(1<<(SFE_2_MAGNO-1))))
 			deadly_flashes=8;
-		if(!(Sensors&(1<<SFE_2_GYRO)))
+		if(!(Sensors&(1<<(SFE_2_GYRO-1))))
 			deadly_flashes=9;
 		if((f_err_code = f_mount(0, &FATFS_Obj)))Usart_Send_Str((char*)"FatFs mount error\r\n");//This should only error if internal error
 		else if(!deadly_flashes){		//FATFS and the I2C initialised ok, try init the card, this also sets up the SPI1

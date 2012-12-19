@@ -163,10 +163,10 @@ void SysTickHandler(void)
 		Fill_Sample_Buffers();
 		//Calculate the number of FIFO reads for this iteration
 		acc_samples+=LSM330_ACCEL_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
-		LSM330_Accel_Reads=(acc_samples-old_acc_samples)/10;//Number of consecutive reads
+		LSM330_Accel_Reads=((uint8_t)(acc_samples-old_acc_samples))/10;//Number of consecutive reads
 		old_acc_samples+=LSM330_Accel_Reads*10;
 		gyro_samples+=LSM330_GYRO_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
-		LSM330_Gyro_Reads=(gyro_samples-old_gyro_samples)/10;//Number of consecutive reads
+		LSM330_Gyro_Reads=((uint8_t)(gyro_samples-old_gyro_samples))/10;//Number of consecutive reads
 		old_gyro_samples+=LSM330_Gyro_Reads*10;
 		//Now set the jobs
 		Jobs|=FIRST_BUS_READS;				//Request all first bus reads

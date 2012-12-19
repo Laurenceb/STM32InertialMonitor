@@ -149,9 +149,9 @@ void I2C1_EV_IRQHandler(void) {
 				Jobs|=0x00000001<<job;//reset the job
 			//Add the data to the buffer from here
 			for(uint8_t n=0;n<3;n++)
-				Add_To_Buffer(*(uint16_t*)&(Rawdata[1][2*n+2]),		&(forehead_buffer.gyro[n]));//+2 as we skip the temperature
+				Add_To_Buffer(*(uint16_t*)&(Rawdata[1][2*n]),		&(forehead_buffer.gyro[n]));
 		}
-		if(job==SFE_1_GYRO) {
+		if(job==FOREHEAD_TEMP) {	//The final bus1 job
 			Jobs|=SECOND_BUS_READS;
 			while(I2C1->CR1 & 0x0300);			//Wait for stop/start bits to clear
 			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
@@ -285,7 +285,7 @@ void I2C_Config() {			//Configure I2C1 for the sensor bus
 	I2C_InitStructure.I2C_OwnAddress1 = 0xAD;//0xAM --> ADAM
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
 	I2C_InitStructure.I2C_AcknowledgedAddress= I2C_AcknowledgedAddress_7bit;
-	I2C_InitStructure.I2C_ClockSpeed = 200000;//80000;
+	I2C_InitStructure.I2C_ClockSpeed = 250000;//80000;
 	//Assert the bus
 	GPIO_InitTypeDef	GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE;
