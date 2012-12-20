@@ -141,6 +141,8 @@ void I2C1_EV_IRQHandler(void) {
 			if(Rawdata[FOREHEAD_ACCEL_FIFO][0]&0x1F) {
 				Rawdata[FOREHEAD_ACCEL_FIFO][0]&=0x1f;
 				Rawdata[FOREHEAD_ACCEL_FIFO][0]--;
+				if(Rawdata[FOREHEAD_ACCEL_FIFO][0]>20)
+					Rawdata[FOREHEAD_ACCEL_FIFO][0]=20;
 				Jobs|=0x00000001<<FOREHEAD_ACCEL;//read the fifo until it is empty
 			}
 		}
@@ -155,6 +157,8 @@ void I2C1_EV_IRQHandler(void) {
 			if(Rawdata[FOREHEAD_GYRO_FIFO][0]&0x1F) {
 				Rawdata[FOREHEAD_GYRO_FIFO][0]&=0x1f;
 				Rawdata[FOREHEAD_GYRO_FIFO][0]--;
+				if(Rawdata[FOREHEAD_GYRO_FIFO][0]>20)
+					Rawdata[FOREHEAD_GYRO_FIFO][0]=20;
 				Jobs|=0x00000001<<FOREHEAD_GYRO;//read the fifo until it is empty
 			}
 		}
