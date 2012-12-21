@@ -43,7 +43,7 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define LSM_330_GYRO_CONFIG_SUB 0xA0
 #define LSM_330_GYRO_CONFIG {0xBF,0x20,0x00,0xB0,0x40}		/*380sps with 100hz bandwidth*/
 #define LSM_330_GYRO_FIFO_SUB 0xAE
-#define LSM_330_GYRO_FIFO_CONFIG {0x20}
+#define LSM_330_GYRO_FIFO_CONFIG {0x40}
 
 #define ADXL_ADDR 0xA6
 #define ADXL_DATA_BYTES 6
@@ -85,15 +85,16 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 {ITG3200_ADDR,		I2C_Direction_Transmitter,	sizeof(ITG3200_config),		ITG3200_CONFIG_SUB,		ITG3200_config}, \
 }
 
-#define LSM330_GYRO_RAW_SAMPLE_RATE 380 /* Sampling rates in samples per second */
-#define LSM330_ACCEL_RAW_SAMPLE_RATE 1350/* These are rounded up to the nearest 10hz interval */
+#define LSM330_GYRO_RAW_SAMPLE_RATE 380   /* Sampling rates in samples per second */
+#define LSM330_ACCEL_RAW_SAMPLE_RATE 1350 /* These are rounded up to the nearest 10hz interval */
 
 extern I2C_Job_Type I2C_jobs[];
 
 extern volatile uint8_t LSM330_Accel_Reads;
 extern volatile uint8_t LSM330_Gyro_Reads;
 
-extern volatile uint8_t Rawdata[11][8];
+extern volatile uint8_t Rawdata[9][8];
+extern volatile uint8_t RawFifo[2][84];
 
 extern SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];
 

@@ -170,7 +170,7 @@ void SysTickHandler(void)
 		old_gyro_samples+=LSM330_Gyro_Reads*10;
 		//Now set the jobs
 		Jobs|=FIRST_BUS_READS;				//Request all first bus reads
-		I2C1_Request_Job(FOREHEAD_ACCEL);		//This will automatically cycle through sensor busses
+		I2C1_Request_Job(FOREHEAD_ACCEL_FIFO);		//This will automatically cycle through sensor busses
 	}
 	//Now process the control button functions
 	if(Button_hold_tim ) {					//If a button press generated timer has been triggered
