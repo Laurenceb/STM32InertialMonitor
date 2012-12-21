@@ -28,7 +28,7 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 //All the sensors are configured for 100Hz data output
 
 #define LSM_330_ACCEL_ADDR 0x30					/*this will be 0x32 if address pin is floating*/
-#define LSM_330_ACCEL_DATA_BYTES 6
+#define LSM_330_ACCEL_DATA_BYTES 8
 #define LSM_330_ACCEL_DATA_SUB 0xA8
 #define LSM_330_ACCEL_CONFIG_SUB 0xA0
 #define LSM_330_ACCEL_CONFIG {0x97,0x00,0x00,0x38,0x40,0x00}	/*normal mode with 1344 sps and 150hz bandwidth, +-16G*/
@@ -36,8 +36,8 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define LSM_330_ACCEL_FIFO_CONFIG {0x80}
 
 #define LSM_330_GYRO_ADDR 0xD2
-#define LSM_330_GYRO_DATA_BYTES 6
-#define LSM_330_GYRO_TEMP_BYTES 2
+#define LSM_330_GYRO_DATA_BYTES 8
+#define LSM_330_GYRO_TEMP_BYTES 1
 #define LSM_330_GYRO_DATA_SUB 0xA8
 #define LSM_330_GYRO_TEMP_SUB 0xA6
 #define LSM_330_GYRO_CONFIG_SUB 0xA0
@@ -64,9 +64,9 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define ITG3200_CONFIG {0x09,0x1B,0x00}
 
 #define I2C_JOBS_INITIALISER {	/*Device reads*/\
-{LSM_330_ACCEL_ADDR,	I2C_Direction_Receiver,	2,				LSM_330_ACCEL_FIFO_SUB+1,NULL}, \
+{LSM_330_ACCEL_ADDR,	I2C_Direction_Receiver,	1,				LSM_330_ACCEL_FIFO_SUB+1,NULL}, \
 {LSM_330_ACCEL_ADDR,	I2C_Direction_Receiver,	LSM_330_ACCEL_DATA_BYTES,	LSM_330_ACCEL_DATA_SUB,	NULL}, \
-{LSM_330_GYRO_ADDR,	I2C_Direction_Receiver,	2,				LSM_330_GYRO_FIFO_SUB+1,NULL}, \
+{LSM_330_GYRO_ADDR,	I2C_Direction_Receiver,	1,				LSM_330_GYRO_FIFO_SUB+1,NULL}, \
 {LSM_330_GYRO_ADDR,	I2C_Direction_Receiver,	LSM_330_GYRO_DATA_BYTES,	LSM_330_GYRO_DATA_SUB,	NULL}, \
 {ADXL_ADDR,		I2C_Direction_Receiver,	ADXL_DATA_BYTES,		ADXL_DATA_SUB,		NULL}, \
 {HMC_ADDR,		I2C_Direction_Receiver,	HMC_DATA_BYTES,			HMC_DATA_SUB,		NULL}, \

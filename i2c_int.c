@@ -20,6 +20,7 @@ volatile I2C_Error_Type I2C1error;	//stores current error status
   */
 void I2C1_EV_IRQHandler(void) {
 	static uint8_t subaddress_sent,final_stop;//flag to indicate if subaddess sent, flag to indicate final bus condition
+	static uint8_t Repcounter_Gyro=0, Fifo_record_Gyro=0, Repcounter_Accel=0, Fifo_record_Accel=0;
 	static int8_t index;		//index is signed -1==send the subaddress
 	volatile uint32_t debugme;
 	uint8_t SReg_1=I2C1->SR1;	//read the status register here
@@ -137,37 +138,55 @@ void I2C1_EV_IRQHandler(void) {
 	if((I2C_jobs[job].bytes+1)==index) {	//we have completed the current job
 		Jobs&=~(0x00000001<<job);	//tick off current job as complete
 		//Completion Tasks go here
-		if(job==FOREHEAD_ACCEL_FIFO || job==FOREHEAD_ACCEL) {//Forehead accel fifo status is read first
-			if(Rawdata[FOREHEAD_ACCEL_FIFO][0]&0x1F) {
-				Rawdata[FOREHEAD_ACCEL_FIFO][0]&=0x1f;
-				Rawdata[FOREHEAD_ACCEL_FIFO][0]--;
-				if(Rawdata[FOREHEAD_ACCEL_FIFO][0]>20)
-					Rawdata[FOREHEAD_ACCEL_FIFO][0]=20;
-				Jobs|=0x00000001<<FOREHEAD_ACCEL;//read the fifo until it is empty
+		if(job==FOREHEAD_ACCEL_FIFO) {
+			Fifo_record_Accel=(Rawdata[FOREHEAD_ACCEL_FIFO][0]&0x1F);
+			Repcounter_Accel=Fifo_record_Accel;
+			Repcounter_Accel=(Repcounter_Accel>14)?14:Repcounter_Accel;
+			if(Repcounter_Accel) {
+				Repcounter_Accel--;
+				Jobs|=0x00000001<<FOREHEAD_ACCEL;
 			}
 		}
 		if(job==FOREHEAD_ACCEL) {	//Forehead accel is read multiple times
-			if(LSM330_Accel_Reads--) {//wipe off the number of reads that have been requested
-				//Add the data to the buffer from here
-				for(uint8_t n=0;n<3;n++)
-					Add_To_Buffer(*(uint16_t*)&(Rawdata[FOREHEAD_ACCEL][2*n]),&(forehead_buffer.accel[n]));
+			if(Repcounter_Accel) {
+				Repcounter_Accel--;
+				Jobs|=0x00000001<<FOREHEAD_ACCEL;
+			}
+			if(--Fifo_record_Accel==(Rawdata[FOREHEAD_ACCEL][7]&0x1F)) {//avoid samples where fifo has changed
+				if(LSM330_Accel_Reads) {//wipe off the number of reads that have been requested
+					LSM330_Accel_Reads--;
+					//Add the data to the buffer from here
+					for(uint8_t n=0;n<3;n++)
+						Add_To_Buffer(*(uint16_t*)&(Rawdata[FOREHEAD_ACCEL][2*n]),&(forehead_buffer.accel[n]));
+				}
+			}
+			else
+				Fifo_record_Accel=(Rawdata[FOREHEAD_ACCEL][7]&0x1F);
+		}
+		if(job==FOREHEAD_GYRO_FIFO) {
+			Fifo_record_Gyro=(Rawdata[FOREHEAD_GYRO_FIFO][0]&0x1F);
+			Repcounter_Gyro=Fifo_record_Gyro;
+			Repcounter_Gyro=(Repcounter_Gyro>5)?5:Repcounter_Gyro;
+			if(Repcounter_Gyro) {
+				Repcounter_Gyro--;
+				Jobs|=0x00000001<<FOREHEAD_GYRO;
 			}
 		}
-		if(job==FOREHEAD_GYRO_FIFO || job==FOREHEAD_GYRO) {//Forehead gyro fifo status is read first
-			if(Rawdata[FOREHEAD_GYRO_FIFO][0]&0x1F) {
-				Rawdata[FOREHEAD_GYRO_FIFO][0]&=0x1f;
-				Rawdata[FOREHEAD_GYRO_FIFO][0]--;
-				if(Rawdata[FOREHEAD_GYRO_FIFO][0]>20)
-					Rawdata[FOREHEAD_GYRO_FIFO][0]=20;
-				Jobs|=0x00000001<<FOREHEAD_GYRO;//read the fifo until it is empty
+		if(job==FOREHEAD_GYRO) {	//Forehead gyro is read multiple times
+			if(Repcounter_Gyro) {
+				Repcounter_Gyro--;
+				Jobs|=0x00000001<<FOREHEAD_GYRO;
 			}
-		}
-		if(job==FOREHEAD_GYRO) {	//Forehead gyro is also read multiple times
-			if(LSM330_Gyro_Reads--) {//wipe off the number of reads
-				//Add the data to the buffer from here
-				for(uint8_t n=0;n<3;n++)
-					Add_To_Buffer(*(uint16_t*)&(Rawdata[FOREHEAD_GYRO][2*n]),&(forehead_buffer.gyro[n]));
+			if(--Fifo_record_Gyro==(Rawdata[FOREHEAD_GYRO][7]&0x1F)) {
+				if(LSM330_Gyro_Reads) {//wipe off the number of reads that have been requested
+					LSM330_Gyro_Reads--;
+					//Add the data to the buffer from here
+					for(uint8_t n=0;n<3;n++)
+						Add_To_Buffer(*(uint16_t*)&(Rawdata[FOREHEAD_GYRO][2*n]),&(forehead_buffer.gyro[n]));
+				}
 			}
+			else
+				Fifo_record_Gyro=(Rawdata[FOREHEAD_GYRO][7]&0x1F);
 		}
 		if(job==FOREHEAD_TEMP) {	//The final bus1 job
 			Jobs|=SECOND_BUS_READS;
@@ -303,7 +322,7 @@ void I2C_Config() {			//Configure I2C1 for the sensor bus
 	I2C_InitStructure.I2C_OwnAddress1 = 0xAD;//0xAM --> ADAM
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
 	I2C_InitStructure.I2C_AcknowledgedAddress= I2C_AcknowledgedAddress_7bit;
-	I2C_InitStructure.I2C_ClockSpeed = 270000;//80000;
+	I2C_InitStructure.I2C_ClockSpeed = 380000;//80000;
 	//Assert the bus
 	GPIO_InitTypeDef	GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE;
