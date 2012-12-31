@@ -77,7 +77,7 @@ void EXTI_ONOFF_EN(void) {
   */
 void SysTick_Configuration(void) {
 	RCC_HCLKConfig(RCC_SYSCLK_Div1);			//CLK the periferal - configure the AHB clk
-	SysTick_Config(90000);					//SYSTICK at 100Hz - this function also enables the interrupt
+	SysTick_Config(45000);					//SYSTICK at 200Hz - this function also enables the interrupt
 	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);   //SYSTICK AHB1/8
 }
 
@@ -131,7 +131,7 @@ void ADC1_2_IRQHandler(void) {
 
 /*******************************************************************************
 * Function Name  : SysTickHandler
-* Description    : This function handles SysTick Handler - runs at 100hz.
+* Description    : This function handles SysTick Handler - runs at 200hz.
 * Input          : None
 * Output         : None
 * Return         : None
@@ -144,57 +144,55 @@ void SysTickHandler(void)
 	static uint8_t System_state_counter;			//Holds the system state counter
 	static uint8_t tmpindex;				//Temp sensor decimator
 	static uint8_t acc_samples=0, old_acc_samples=0, gyro_samples=0, old_gyro_samples=0;//Used to syncronise to the raw sensor sample rates with 10sps precison
-	//FatFS timer function
-	disk_timerproc();
 	//Incr the system uptime
-	Millis+=10;
-	if(ADC_GetFlagStatus(ADC2, ADC_FLAG_JEOC)) {		//We have adc2 converted data from the injected channels
-		ADC_ClearFlag(ADC2, ADC_FLAG_JEOC);		//Clear the flag
-		//Sets the Rohm motor controller to idle (low current shutdown) state
-		//Check the die temperature - not possible on adc1 :-(
-		//Device_Temperature=convert_die_temp(ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_3));//The on die temperature sensor
-		//Could process some more sensor data here
-		Battery_Voltage=(float)ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1)/(SAMPLING_FACTOR);
+	Millis+=5;
+	I2C_Transactions_State=!I2C_Transactions_State;
+	if(I2C_Transactions_State) {				//every 10ms
+		//FatFS timer function
+		disk_timerproc();
+		if(ADC_GetFlagStatus(ADC2, ADC_FLAG_JEOC)) {	//We have adc2 converted data from the injected channels
+			ADC_ClearFlag(ADC2, ADC_FLAG_JEOC);	//Clear the flag
+			//Check the die temperature - not possible on adc1 :-(
+			//Device_Temperature=convert_die_temp(ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_3));//The on die temperature sensor
+			//Could process some more sensor data here
+			Battery_Voltage=(float)ADC_GetInjectedConversionValue(ADC2, ADC_InjectedChannel_1)/(SAMPLING_FACTOR);
+		}
+		ADC_SoftwareStartInjectedConvCmd(ADC2, ENABLE);	//Trigger the injected channel group
+		//Now process the control button functions
+		if(Button_hold_tim ) {				//If a button press generated timer has been triggered
+			if(GPIO_ReadInputDataBit(GPIOA,WKUP)) {	//Button hold turns off the device
+				if(!--Button_hold_tim) {
+					shutdown_filesystem(1,file_opened);
+					shutdown();		//Turn off the logger after closing any open files
+				}
+			}
+			else {					//Button released - this can only ever run once per press
+				RED_LED_OFF;			//Turn off the red LED - used to indicate button press to user
+				if(Button_hold_tim<BUTTON_DEBOUNCE) {//The button has to be held down for longer than the debounce period
+					Last_Button_Press=Millis;
+					if(++System_state_counter>=SYSTEM_STATES)
+						System_state_counter=0;//The system can only have a limited number of states
+				}
+				Button_hold_tim=0;		//Reset the timer here
+			}
+		}
+		if(Last_Button_Press&&(Millis-Last_Button_Press>BUTTON_MULTIPRESS_TIMEOUT)&&!Button_hold_tim) {//Last press timed out and button is not pressed
+			if(!(System_state_Global&0x80))		//The main code has unlocked the global using the bit flag - as it has processed
+				System_state_Global=0x80|System_state_counter;//The previous state update
+			System_state_counter=0;			//Reset state counter here
+			Last_Button_Press=0;			//Reset the last button press timestamp, as the is no button press in play
+		}
 	}
-	ADC_SoftwareStartInjectedConvCmd(ADC2, ENABLE);		//Trigger the injected channel group
-	//Read any I2C bus sensors here (100Hz)
+	//Read any I2C bus sensors here (200Hz)
 	if(Sensors==0xFF) {
-		//First read the sensor buffers into the data sample buffers
-		Fill_Sample_Buffers();
-		//Calculate the number of FIFO reads for this iteration
-		acc_samples+=LSM330_ACCEL_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
-		LSM330_Accel_Reads=((uint8_t)(acc_samples-old_acc_samples))/10;//Number of consecutive reads
-		old_acc_samples+=LSM330_Accel_Reads*10;
-		gyro_samples+=LSM330_GYRO_RAW_SAMPLE_RATE/10;	//This is defined in the sensors header file
-		LSM330_Gyro_Reads=((uint8_t)(gyro_samples-old_gyro_samples))/10;//Number of consecutive reads
-		old_gyro_samples+=LSM330_Gyro_Reads*10;
+		//First read the sensor buffers into the data sample buffers - loads sfe data from the last read
+		Fill_Sample_Buffers(I2C_Transactions_State);
 		//Now set the jobs
-		Jobs|=FIRST_BUS_READS;				//Request all first bus reads
-		I2C1_Request_Job(FOREHEAD_ACCEL_FIFO);		//This will automatically cycle through sensor busses
-	}
-	//Now process the control button functions
-	if(Button_hold_tim ) {					//If a button press generated timer has been triggered
-		if(GPIO_ReadInputDataBit(GPIOA,WKUP)) {		//Button hold turns off the device
-			if(!--Button_hold_tim) {
-				shutdown_filesystem(1,file_opened);
-				shutdown();			//Turn off the logger after closing any open files
-			}
-		}
-		else {						//Button released - this can only ever run once per press
-			RED_LED_OFF;				//Turn off the red LED - used to indicate button press to user
-			if(Button_hold_tim<BUTTON_DEBOUNCE) {	//The button has to be held down for longer than the debounce period
-				Last_Button_Press=Millis;
-				if(++System_state_counter>=SYSTEM_STATES)
-					System_state_counter=0;//The system can only have a limited number of states
-			}
-			Button_hold_tim=0;			//Reset the timer here
-		}
-	}
-	if(Last_Button_Press&&(Millis-Last_Button_Press>BUTTON_MULTIPRESS_TIMEOUT)&&!Button_hold_tim) {//Last press timed out and button is not pressed
-		if(!(System_state_Global&0x80))			//The main code has unlocked the global using the bit flag - as it has processed
-			System_state_Global=0x80|System_state_counter;//The previous state update
-		System_state_counter=0;				//Reset state counter here
-		Last_Button_Press=0;				//Reset the last button press timestamp, as the is no button press in play
+		if(I2C_Transactions_State)
+			Jobs|=FOREHEAD_READS|FIRST_BUS_READS;	//Request all first bus reads
+		else
+			Jobs|=FOREHEAD_READS|SECOND_BUS_READS;
+		I2C1_Request_Job(FOREHEAD_ACCEL);		//This will automatically cycle through sensor busses
 	}
 }
 

@@ -12,8 +12,8 @@
 #include "Sensors/amb_sensors.h"
 #include "usb_lib.h"
 #include "Util/wave.h"
-#include "Util/filter_1350.h"
-#include "Util/filter_380.h"
+#include "Util/filter_1200.h"
+#include "Util/filter_190.h"
 #include "Util/USB/hw_config.h"
 #include "Util/USB/usb_pwr.h"
 #include "Util/fat_fs/inc/diskio.h"
@@ -101,15 +101,15 @@ int main(void)
 		Sensors=detect_sensors(0);		//Search for connected sensors
 		if(battery_voltage<BATTERY_STARTUP_LIMIT)
 			deadly_flashes=1;
-		if(!(Sensors&(1<<FOREHEAD_ACCEL-1)))	//Check for any missing sensors
+		if(!(Sensors&(1<<FOREHEAD_ACCEL)))	//Check for any missing sensors
 			deadly_flashes=2;
-		if(!(Sensors&(1<<FOREHEAD_GYRO-2)))
+		if(!(Sensors&(1<<FOREHEAD_GYRO-1)))
 			deadly_flashes=3;
-		if(!(Sensors&(1<<SFE_1_ACCEL-2)))
+		if(!(Sensors&(1<<SFE_1_ACCEL-1)))
 			deadly_flashes=4;
-		if(!(Sensors&(1<<SFE_1_MAGNO-2)))
+		if(!(Sensors&(1<<SFE_1_MAGNO-1)))
 			deadly_flashes=5;
-		if(!(Sensors&(1<<SFE_1_GYRO-2)))
+		if(!(Sensors&(1<<SFE_1_GYRO-1)))
 			deadly_flashes=6;
 		if(!(Sensors&(1<<(SFE_2_ACCEL-3))))
 			deadly_flashes=7;
@@ -288,25 +288,25 @@ int main(void)
 		while(bytes_in_buff(&(forehead_buffer.accel[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
-				SampleFilter_put_1350(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
+				SampleFilter_put_1200(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
 				sensor_raw_data[n]=sensor_data;
 			}
 			write_wave_samples(&FATFS_wavfile_accel, 3, 16, &Accel_wav_stuffer,(uint16_t*)sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
-			sensor_data=(int16_t)SampleFilter_get_1350(&LSM330_Accel_Filter[n]);
+			sensor_data=(int16_t)SampleFilter_get_1200(&LSM330_Accel_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 		}
 		while(bytes_in_buff(&(forehead_buffer.gyro[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.gyro[n]));//Retrive one sample of data
-				SampleFilter_put_380(&LSM330_Gyro_Filter[n],(float)sensor_data);//Dump into the low pass filter
+				SampleFilter_put_190(&LSM330_Gyro_Filter[n],(float)sensor_data);//Dump into the low pass filter
 				sensor_raw_data[n]=sensor_data;
 			}
 			write_wave_samples(&FATFS_wavfile_gyro, 3, 16, &Gyro_wav_stuffer, (uint16_t*) sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
-			sensor_data=(int16_t)SampleFilter_get_380(&LSM330_Gyro_Filter[n]);
+			sensor_data=(int16_t)SampleFilter_get_190(&LSM330_Gyro_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 		}
 		Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.temp));//Retrive one sample of data
@@ -437,7 +437,7 @@ uint8_t detect_sensors(uint8_t noini) {
 		if(Millis>(millis+20))
 			return 0;
 	}
-	sensors=(jobs_completed>>LSM330_GYRO_CONFIG_JOB)&0x1E;//shift this to set the sensor detected bits
+	sensors=(jobs_completed>>LSM330_GYRO_CONFIG_JOB-1)&0x1E;//shift this to set the sensor detected bits
 	sensors|=(jobs_completed>>LSM330_ACCEL_CONFIG_JOB)&0x01;
 	sensors|=((Completed_Jobs)>>(ADXL_CONFIG_JOB-SFE_2_ACCEL))&0xE0;
 	if(sensors==0xFF && !noini) {			//All sensors found ok and we are allowed to initialise the buffers

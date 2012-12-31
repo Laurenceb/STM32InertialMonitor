@@ -138,51 +138,34 @@ void I2C1_EV_IRQHandler(void) {
 	if((I2C_jobs[job].bytes+1)==index) {	//we have completed the current job
 		Jobs&=~(0x00000001<<job);	//tick off current job as complete
 		//Completion Tasks go here
-		if(job==FOREHEAD_ACCEL_FIFO) {
-			Fifo_record_Accel=(Rawdata[FOREHEAD_ACCEL_FIFO][0]&0x1F);
-			if(Fifo_record_Accel) {
-				Fifo_record_Accel=(Fifo_record_Accel>14)?14:Fifo_record_Accel;
-				I2C_jobs[FOREHEAD_ACCEL].bytes=Fifo_record_Accel*6;
-				Jobs|=0x00000001<<FOREHEAD_ACCEL;
-			}
-		}
 		if(job==FOREHEAD_ACCEL) {	//Forehead accel is read multiple times
-			for(uint8_t m=0;m<Fifo_record_Accel;m++) {
-				if(LSM330_Accel_Reads) {
-					LSM330_Accel_Reads--;
-					//Add the data to the buffer from here
-					for(uint8_t n=0;n<3;n++)
-						Add_To_Buffer(*(uint16_t*)&(RawFifo[0][(2*n)+(m*6)]),&(forehead_buffer.accel[n]));
-				}
+			uint8_t m;
+			for(m=0;m<LSM330_ACCEL_RAW_READS;m++) {
+				//Add the data to the buffer from here
+				for(uint8_t n=0;n<3;n++)
+					Add_To_Buffer(*(uint16_t*)&(RawFifo[(2*n)+(m*6)]),&(forehead_buffer.accel[n]));
 			}
+			for(uint8_t n=0;n<3;n++) {//We interpolate an extra sample here to fill the gap where accel fifo was being read
+				int32_t interpolated=(*(int16_t*)&RawFifo[(2*n)+((m-1)*6)])+LastFifo[n];
+				interpolated>>1;
+				Add_To_Buffer(*(uint16_t*)&interpolated,&(forehead_buffer.accel[n]));
+				LastFifo[n]=*(int16_t*)&RawFifo[(2*n)+((m-1)*6)];//Store the current values
+			}	
 		}
-		if(job==FOREHEAD_GYRO_FIFO) {
-			Fifo_record_Gyro=(Rawdata[FOREHEAD_GYRO_FIFO][0]&0x1F);
-			if(Fifo_record_Gyro) {
-				Fifo_record_Gyro=(Fifo_record_Gyro>5)?5:Fifo_record_Gyro;
-				I2C_jobs[FOREHEAD_GYRO].bytes=Fifo_record_Gyro*6;
-				Jobs|=0x00000001<<FOREHEAD_GYRO;
+		if(job==FOREHEAD_GYRO) {	//Forehead gyro is read once (so 200hz)
+			//Add the data to the buffer from here
+			for(uint8_t n=0;n<3;n++)
+				Add_To_Buffer(*(uint16_t*)&(Rawdata[0][2*n]),&(forehead_buffer.gyro[n]));
+			//Need to swap over to sfe sensors now
+			if(!I2C_Transactions_State) {
+				while(I2C1->CR1 & 0x0300);	//Wait for stop/start bits to clear
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+				asm volatile ("dmb" ::: "memory");
+				Remap();			//Remap i2c to bus2 - now handled in the isr
+				asm volatile ("dmb" ::: "memory");
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+				asm volatile ("dmb" ::: "memory");
 			}
-		}
-		if(job==FOREHEAD_GYRO) {	//Forehead gyro is read multiple times
-			for(uint8_t m=0;m<Fifo_record_Gyro;m++) {
-				if(LSM330_Gyro_Reads) {
-					LSM330_Gyro_Reads--;
-					//Add the data to the buffer from here
-					for(uint8_t n=0;n<3;n++)
-						Add_To_Buffer(*(uint16_t*)&(RawFifo[1][(2*n)+(m*6)]),&(forehead_buffer.gyro[n]));
-				}
-			}
-		}
-		if(job==FOREHEAD_TEMP) {	//The final bus1 job
-			Jobs|=SECOND_BUS_READS;
-			while(I2C1->CR1 & 0x0300);			//Wait for stop/start bits to clear
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
-			asm volatile ("dmb" ::: "memory");
-			Remap();					//Remap i2c to bus2 - now handled in the isr
-			asm volatile ("dmb" ::: "memory");
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
-			asm volatile ("dmb" ::: "memory");
 		}
 		//End of completion tasks
 		Completed_Jobs|=(0x00000001<<job);//These can be polled by other tasks to see if a job has been completed or is scheduled 
@@ -208,7 +191,7 @@ void I2C1_EV_IRQHandler(void) {
 			asm volatile ("dmb" ::: "memory");
 			Unremap();	//This will mark the end of the reads
 			asm volatile ("dmb" ::: "memory");
-			Delay(50);
+			Delay(20);
 			RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
 		}
 	}
@@ -308,7 +291,7 @@ void I2C_Config() {			//Configure I2C1 for the sensor bus
 	I2C_InitStructure.I2C_OwnAddress1 = 0xAD;//0xAM --> ADAM
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
 	I2C_InitStructure.I2C_AcknowledgedAddress= I2C_AcknowledgedAddress_7bit;
-	I2C_InitStructure.I2C_ClockSpeed = 300000;//80000;
+	I2C_InitStructure.I2C_ClockSpeed = 400000;//80000;
 	//Assert the bus
 	GPIO_InitTypeDef	GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE;
