@@ -15,7 +15,7 @@ void disable_pin() {
 }
 
 void shutdown_filesystem(uint8_t reason, uint8_t file_flags) {
-	uint8_t c[25];
+	uint8_t c[25]={};
 	if(reason)
 		memcpy(c,"\r\nLogger turned off\r\n",21);
 	else
