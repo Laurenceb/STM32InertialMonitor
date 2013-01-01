@@ -20,7 +20,6 @@ volatile I2C_Error_Type I2C1error;	//stores current error status
   */
 void I2C1_EV_IRQHandler(void) {
 	static uint8_t subaddress_sent,final_stop;//flag to indicate if subaddess sent, flag to indicate final bus condition
-	static uint8_t Fifo_record_Gyro=0, Fifo_record_Accel=0;
 	static int8_t index;		//index is signed -1==send the subaddress
 	volatile uint32_t debugme;
 	uint8_t SReg_1=I2C1->SR1;	//read the status register here
@@ -147,7 +146,7 @@ void I2C1_EV_IRQHandler(void) {
 			}
 			for(uint8_t n=0;n<3;n++) {//We interpolate an extra sample here to fill the gap where accel fifo was being read
 				int32_t interpolated=(*(int16_t*)&RawFifo[(2*n)+((m-1)*6)])+LastFifo[n];
-				interpolated>>1;
+				interpolated>>=1;
 				Add_To_Buffer(*(uint16_t*)&interpolated,&(forehead_buffer.accel[n]));
 				LastFifo[n]=*(int16_t*)&RawFifo[(2*n)+((m-1)*6)];//Store the current values
 			}	
