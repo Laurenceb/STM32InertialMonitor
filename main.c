@@ -103,13 +103,13 @@ int main(void)
 			deadly_flashes=1;
 		if(!(Sensors&(1<<FOREHEAD_ACCEL)))	//Check for any missing sensors
 			deadly_flashes=2;
-		if(!(Sensors&(1<<FOREHEAD_GYRO-1)))
+		if(!(Sensors&(1<<(FOREHEAD_GYRO-1))))
 			deadly_flashes=3;
-		if(!(Sensors&(1<<SFE_1_ACCEL-1)))
+		if(!(Sensors&(1<<(SFE_1_ACCEL-1))))
 			deadly_flashes=4;
-		if(!(Sensors&(1<<SFE_1_MAGNO-1)))
+		if(!(Sensors&(1<<(SFE_1_MAGNO-1))))
 			deadly_flashes=5;
-		if(!(Sensors&(1<<SFE_1_GYRO-1)))
+		if(!(Sensors&(1<<(SFE_1_GYRO-1))))
 			deadly_flashes=6;
 		if(!(Sensors&(1<<(SFE_2_ACCEL-3))))
 			deadly_flashes=7;
@@ -260,6 +260,18 @@ int main(void)
 		write_wave_header(&FATFS_wavfile_gyro, 3, LSM330_GYRO_RAW_SAMPLE_RATE, 16);
 	Millis=0;					//Reset system uptime, we have 50 days before overflow
 	I2C1error.error=0;
+	for(uint8_t n=0;n<3;n++) {
+		Empty_Buffer(&(forehead_buffer.accel[n]));//Wipe all the buffers so that data is aligned with the start of the recording
+		Empty_Buffer(&(forehead_buffer.gyro[n]));
+		for(uint8_t m=0;m<2;m++) {
+			Empty_Buffer(&(sfe_sensor_buffers[m].accel[n]));
+			Empty_Buffer(&(sfe_sensor_buffers[m].magno[n]));
+			Empty_Buffer(&(sfe_sensor_buffers[m].gyro[n]));
+		}
+	}
+	Empty_Buffer(&(forehead_buffer.temp));
+	Empty_Buffer(&(sfe_sensor_buffers[0].temp));
+	Empty_Buffer(&(sfe_sensor_buffers[1].temp));
 	while (1) {
 		if(!I2C1error.error && repetition_counter<4) {
 			Watchdog_Reset();		//Reset the watchdog each main loop iteration if everything looks ok
@@ -437,7 +449,7 @@ uint8_t detect_sensors(uint8_t noini) {
 		if(Millis>(millis+20))
 			return 0;
 	}
-	sensors=(jobs_completed>>LSM330_GYRO_CONFIG_JOB-1)&0x1E;//shift this to set the sensor detected bits
+	sensors=(jobs_completed>>(LSM330_GYRO_CONFIG_JOB-1))&0x1E;//shift this to set the sensor detected bits
 	sensors|=(jobs_completed>>LSM330_ACCEL_CONFIG_JOB)&0x01;
 	sensors|=((Completed_Jobs)>>(ADXL_CONFIG_JOB-SFE_2_ACCEL))&0xE0;
 	if(sensors==0xFF && !noini) {			//All sensors found ok and we are allowed to initialise the buffers
