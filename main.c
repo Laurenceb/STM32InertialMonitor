@@ -421,10 +421,11 @@ uint8_t detect_sensors(uint8_t noini) {
 			return 0;
 	}
 	jobs_completed = Completed_Jobs;		//Copy this so it is not overwritten
-	if(I2C1error.job == LSM330_ACCEL_CONFIG_JOB) {	//The accel address is different on differing versions of the sensor cable
+	if(I2C1error.job == LSM330_ACCEL_CONFIG_JOB || I2C1error.job == LSM330_ACCEL_FIFO_JOB) {//Accel address is different on differing sensor cables
 		I2C_jobs[FOREHEAD_ACCEL].address = LSM_330_ACCEL_ADDR|0x02;
 		I2C_jobs[LSM330_ACCEL_CONFIG_JOB].address = LSM_330_ACCEL_ADDR|0x02;//Change the addresses on the forehead accel
 		I2C_jobs[LSM330_ACCEL_FIFO_JOB].address = LSM_330_ACCEL_ADDR|0x02;
+		I2C_jobs[FOREHEAD_ACCEL_FIFO].address = LSM_330_ACCEL_ADDR|0x02;
 		Sensor_Cable=0x01;			//This cable id functionality could be extended if future adding i2c EEPROM for example
 		Jobs|=(1<<LSM330_ACCEL_FIFO_JOB);
 		I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
@@ -456,5 +457,6 @@ uint8_t detect_sensors(uint8_t noini) {
 		Allocate_Sensor_Buffers(50);		//Calls sensor function to allocate buffers - enough for 0.5s of data
 		Configure_I2C_Driver();
 	}
+	Delay(5000);
 	return sensors;
 }

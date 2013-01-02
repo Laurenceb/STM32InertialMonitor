@@ -12,7 +12,7 @@ typedef struct{
 } I2C_Error_Type;
 
 typedef struct{
-	uint8_t address;	//device address for this job
+	volatile uint8_t address;//device address for this job
 	const uint8_t direction;//direction (I2C_Direction_Transmitter or I2C_Direction_Receiver)
 	uint8_t bytes;	//number of bytes to read/write
 	const uint8_t subaddress;//register subaddress for the device - set to 0xFF if no subaddress used (direct read/write)
