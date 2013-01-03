@@ -430,7 +430,7 @@ uint8_t detect_sensors(uint8_t noini) {
 		Jobs|=(1<<LSM330_ACCEL_FIFO_JOB);
 		I2C1_Request_Job(LSM330_ACCEL_CONFIG_JOB);
 		millis=Millis;
-		while(Jobs) {;				//Wait for completion
+		while(Jobs) {				//Wait for completion
 			if(Millis>(millis+20))
 				return 0;
 		}
@@ -457,6 +457,6 @@ uint8_t detect_sensors(uint8_t noini) {
 		Allocate_Sensor_Buffers(50);		//Calls sensor function to allocate buffers - enough for 0.5s of data
 		Configure_I2C_Driver();
 	}
-	Delay(5000);
+	Delay(20000);
 	return sensors;
 }
