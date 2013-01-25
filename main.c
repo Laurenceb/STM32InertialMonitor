@@ -205,8 +205,6 @@ int main(void)
 					else {
 						if((f_err_code=f_lseek(&FATFS_wavfile_accel, 0)))//Seek back to start of file to start writing
 							Usart_Send_Str((char*)"Seek error\r\n");
-						else
-							rprintfInit(__str_print_char);//Printf to the logfile
 					}
 					if(f_err_code)
 						f_close(&FATFS_wavfile_accel);//Close the already opened file on error
@@ -220,8 +218,6 @@ int main(void)
 					else {
 						if((f_err_code=f_lseek(&FATFS_wavfile_gyro, 0)))//Seek back to start of file to start writing
 							Usart_Send_Str((char*)"Seek error\r\n");
-						else
-							rprintfInit(__str_print_char);//Printf to the logfile
 					}
 					if(f_err_code)
 						f_close(&FATFS_wavfile_gyro);//Close the already opened file on error

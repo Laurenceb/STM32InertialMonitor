@@ -14,7 +14,7 @@ STARTUP_FILE = stm32f10x_md
 HSE_VALUE = 12000000UL
 
 # Enable debug compilation
-DEBUG = 1
+#DEBUG = 1
 
 # [OPTIONAL] Set the serial details for bootloading
 STM32LDR_PORT = /dev/rfcomm3
@@ -52,8 +52,8 @@ ifdef DEBUG
  TARGET_OPTS = -O3 -g3
  DEBUG_MACRO = -DDEBUG
 else	#Changed from O2 - optimisation split between control loop and rest of project, using a seperate makefile
- TARGET_OPTS = $(OPTIMISE) -finline -finline-functions-called-once\
-  -funroll-loops -fno-common -fpromote-loop-indices -fno-rtti -fno-exceptions -ffunction-sections -fdata-sections
+ TARGET_OPTS = $(OPTIMISE) -finline -finline-functions-called-once \
+  -funroll-loops -fno-common -fno-rtti -fno-exceptions -ffunction-sections -fdata-sections #-fpromote-loop-indices 
 endif
 
 CC = arm-none-eabi-gcc
@@ -66,8 +66,8 @@ AS = $(CC) -x assembler-with-cpp -c $(TARGET_ARCH)
 ASFLAGS = $(COMPILE_OPTS)
 
 LD = $(CC)
-LDFLAGS = -Wl,--gc-sections,-Map=$(MAIN_MAP),-cref -T lanchon-stm32.ld -L lib\
- $(INCLUDE_DIRS) $(LIBRARY_DIRS) $(LIBM) #-lstdc++
+LDFLAGS = -Wl,--gc-sections,-Map=$(MAIN_MAP),--cref -T link-stm32.ld -L lib\
+ $(INCLUDE_DIRS) $(LIBRARY_DIRS) $(LIBM) -ffunction-sections #-lstdc++
 
 AR = arm-none-eabi-ar
 ARFLAGS = cr
