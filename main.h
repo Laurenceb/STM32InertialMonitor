@@ -16,6 +16,8 @@ extern volatile uint8_t Sensors;
 
 extern volatile uint8_t Sensor_Cable;
 
+extern volatile uint8_t Shutdown_System;
+
 #define PRE_SIZE 1000000ul	/*Preallocate size*/
 
 #define SYSTEM_STATES 4		/*Number of different control states- atm just four status codes implimented*/
@@ -24,6 +26,7 @@ extern volatile uint8_t Sensor_Cable;
 
 #define ITERATION_RATE 100	/*System timer*/
 
+enum{BUTTON_TURNOFF=1,USB_INSERTED,LOW_BATTERY};
 //Battery specific config goes here
 #define BATTERY_STARTUP_LIMIT 3.7f /*Around 25% capacity remaining for lithium polymer at 25C slow discharge*/
 #if BOARD<3

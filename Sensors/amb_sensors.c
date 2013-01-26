@@ -13,7 +13,6 @@ const uint8_t ADXL_config[]=ADXL_CONFIG;
 const uint8_t HMC_config[]=HMC_CONFIG;
 const uint8_t ITG3200_config[]=ITG3200_CONFIG;
 
-
 //We have to keep the sensor samples syncronised with the system timer rather than the sensor clocks, so no clock squew
 volatile uint8_t I2C_Transactions_State;
 
@@ -21,6 +20,11 @@ SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];//Filters used for dow
 
 I2C_Job_Type I2C_jobs[]=I2C_JOBS_INITIALISER;	//Defines the I2C transactions
 
+/**
+  * @brief  Sets up buffers for I2C data to be passed back
+  * @param  uint8_t samples: number of samples we require to be able to buffer
+  * @retval None
+  */
 void Allocate_Sensor_Buffers(uint8_t samples){
 	for(uint8_t m=0;m<2;m++) {		//Init the two sparkfun sensor buffers
 		for(uint8_t n=0;n<3;n++) {
@@ -39,6 +43,11 @@ void Allocate_Sensor_Buffers(uint8_t samples){
 	}
 }
 
+/**
+  * @brief  Sets up I2C driver to point to the Raw data buffers
+  * @param  None
+  * @retval None
+  */
 void Configure_I2C_Driver(void) {
 	//Setup the pointers to the read data
 	I2C1_Setup_Job(0, (volatile uint8_t*)&(RawFifo[0]));
@@ -46,8 +55,12 @@ void Configure_I2C_Driver(void) {
 		I2C1_Setup_Job(n, (volatile uint8_t*)&(Rawdata[n-2][0]));//Each data buffer
 }
 
-//Loads the data from the raw i2c driver into the data buffers as 16 bit integers
-void Fill_Sample_Buffers(uint8_t state) {	//State should be zero or two Init the two sparkfun sensor buffers
+/**
+  * @brief  Loads the data from the raw I2C driver into the data buffers as 16 bit integers
+  * @param  uint8_t state: takes values 0 or 1 to toggle between sparkfun sensor units
+  * @retval None
+  */
+void Fill_Sample_Buffers(uint8_t state) {	//State should be zero or one to use the two sparkfun sensor buffers
 	for(uint8_t n=0;n<3;n++) {
 		Add_To_Buffer(*(uint16_t*)&(Rawdata[1+4*state][2*n]),		&(sfe_sensor_buffers[state].accel[n]));
 		Add_To_Buffer(Flipedbytes(*(uint16_t*)&(Rawdata[2+4*state][2*n])),&(sfe_sensor_buffers[state].magno[n]));

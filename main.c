@@ -29,8 +29,9 @@ UINT a;							//File bytes counter
 volatile uint32_t Millis;				//System uptime (rollover after 50 days)
 volatile uint8_t System_state_Global;			//Stores the system state, controlled by the button, most significant bit is a flag
 volatile uint8_t Sensors;				//Global holding a mask of the sensors found by automatic sensor discovery
-volatile uint8_t Sensor_Cable;					//ID for the attached cable
+volatile uint8_t Sensor_Cable;				//ID for the attached cable
 volatile float battery_voltage;				//Used to flush the adc
+volatile uint8_t Shutdown_System;			//Used to order a system shutdown to sleep mode
 //Sensor buffers to pass data back to logger
 volatile Sparkfun_9DOF_buff sfe_sensor_buffers[2];	//Data from sparkfun sensors
 volatile Forehead_sensor_buff forehead_buffer;		//Data from forehead sensors
@@ -348,7 +349,7 @@ int main(void)
 		printf("%d",system_state);		//Terminating newline
 		system_state=0;				//Reset this
 		printf("\n");				//Terminating newline
-		if(file_opened) {
+		if(file_opened & 0x01) {
 			f_puts(print_string,&FATFS_logfile);
 			print_string[0]=0x00;		//Set string length to 0
 		}
@@ -361,9 +362,16 @@ int main(void)
 			switch_leds_on();		//Flash the LED(s)
 		else
 			switch_leds_off();
-		if(System_state_Global&0x80) {		//A "control" button press
-			System_state_Global&=~0x80;	//Wipe the flag bit to show this has been processed
-			//at moment nothing implimented for button press, but system state is printed for use as an event marker
+		if(Shutdown_System) {			//A system shutdown has been requested
+			if(file_opened)
+				shutdown_filesystem(Shutdown_System, file_opened);
+			if(Shutdown_System==USB_INSERTED)
+				NVIC_SystemReset();	//Software reset of the system - USB inserted whilst running
+			else {
+				if(Shutdown_System==LOW_BATTERY)
+					red_flash;	//Used to indicate an error condition before turnoff
+				shutdown();		//Puts us into sleep mode
+			}
 		}
 	}
 }

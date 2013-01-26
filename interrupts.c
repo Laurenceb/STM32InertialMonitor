@@ -91,13 +91,11 @@ void EXTI0_IRQHandler(void) {
 		/* Clear the  EXTI line 0 pending bit */
 		EXTI_ClearITPendingBit(EXTI_Line0);
 		if(USB_SOURCE!=bootsource && GET_CHRG_STATE) {	//Interrupt due to USB insertion - reset to usb mode
-			if(file_opened)
-				shutdown_filesystem(1,file_opened);
-			NVIC_SystemReset();			//Software reset of the system - USB inserted whilst running
+			Shutdown_System=USB_INSERTED;		//Request a software reset of the system - USB inserted whilst running
 		}
 		if(USB_SOURCE==bootsource) {
 			if(file_opened) 
-				shutdown_filesystem(1,file_opened);
+				shutdown_filesystem(1,file_opened);//This should not happen
 			red_flash();				//Flash red led - provides some debouncing on jack removal
 			shutdown();				//Shuts down - only wakes up on power pin i.e. WKUP
 		}
@@ -114,13 +112,8 @@ void EXTI0_IRQHandler(void) {
   * @retval None
   */
 void ADC1_2_IRQHandler(void) {
-	if(ADC_GetITStatus(ADC2, ADC_IT_AWD)) {			//Analogue watchdog was triggered
-		if(file_opened) {
-			shutdown_filesystem(0,file_opened);
-		}
-		red_flash();					//Flash red led
-		shutdown();					//Shutdown to save battery
-	}
+	if(ADC_GetITStatus(ADC2, ADC_IT_AWD))			//Analogue watchdog was triggered
+		Shutdown_System=LOW_BATTERY;			//Shutdown to save battery
 	ADC_ClearITPendingBit(ADC2, ADC_IT_EOC);
 	ADC_ClearITPendingBit(ADC2, ADC_IT_JEOC);
 	ADC_ClearITPendingBit(ADC1, ADC_IT_EOC);
@@ -161,11 +154,8 @@ void SysTickHandler(void)
 		//Now process the control button functions
 		if(Button_hold_tim ) {				//If a button press generated timer has been triggered
 			if(GPIO_ReadInputDataBit(GPIOA,WKUP)) {	//Button hold turns off the device
-				if(!--Button_hold_tim) {
-					if(file_opened)
-						shutdown_filesystem(1,file_opened);
-					shutdown();		//Turn off the logger after closing any open files
-				}
+				if(!--Button_hold_tim)
+					Shutdown_System=BUTTON_TURNOFF;//Request turn off of logger after closing any open files
 			}
 			else {					//Button released - this can only ever run once per press
 				RED_LED_OFF;			//Turn off the red LED - used to indicate button press to user
