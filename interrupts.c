@@ -131,12 +131,8 @@ void ADC1_2_IRQHandler(void) {
 *******************************************************************************/
 void SysTickHandler(void)
 {
-	static float I,old_pressure;
-	static uint16_t Enabled_iterations;			//Note, this is going to break if we spend long periods with +ive pressure set
 	static uint32_t Last_Button_Press;			//Holds the timestamp for the previous button press
 	static uint8_t System_state_counter;			//Holds the system state counter
-	static uint8_t tmpindex;				//Temp sensor decimator
-	static uint8_t acc_samples=0, old_acc_samples=0, gyro_samples=0, old_gyro_samples=0;//Used to syncronise to the raw sensor sample rates with 10sps precison
 	//Incr the system uptime
 	Millis+=5;
 	I2C_Transactions_State=!I2C_Transactions_State;
