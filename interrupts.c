@@ -86,7 +86,7 @@ void SysTick_Configuration(void) {
   * @param  None
   * @retval None
   */
-void EXTI0_IRQHandler(void) {
+__attribute__((externally_visible)) void EXTI0_IRQHandler(void) {
 	if(EXTI_GetITStatus(EXTI_Line0) != RESET) {
 		/* Clear the  EXTI line 0 pending bit */
 		EXTI_ClearITPendingBit(EXTI_Line0);
@@ -111,7 +111,7 @@ void EXTI0_IRQHandler(void) {
   * @param  None
   * @retval None
   */
-void ADC1_2_IRQHandler(void) {
+__attribute__((externally_visible)) void ADC1_2_IRQHandler(void) {
 	if(ADC_GetITStatus(ADC2, ADC_IT_AWD))			//Analogue watchdog was triggered
 		Shutdown_System=LOW_BATTERY;			//Shutdown to save battery
 	ADC_ClearITPendingBit(ADC2, ADC_IT_EOC);
@@ -123,13 +123,13 @@ void ADC1_2_IRQHandler(void) {
 
 
 /*******************************************************************************
-* Function Name  : SysTickHandler
+* Function Name  : SysTick_Handler
 * Description    : This function handles SysTick Handler - runs at 200hz.
 * Input          : None
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void SysTickHandler(void)
+__attribute__((externally_visible)) void SysTick_Handler(void)
 {
 	static uint32_t Last_Button_Press;			//Holds the timestamp for the previous button press
 	static uint8_t System_state_counter;			//Holds the system state counter
@@ -193,7 +193,7 @@ void SysTickHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USB_HP_CAN_TX_IRQHandler(void)
+__attribute__((externally_visible)) void USB_HP_CAN1_TX_IRQHandler(void)
 {
   CTR_HP();
 }
@@ -206,7 +206,7 @@ void USB_HP_CAN_TX_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-void USB_LP_CAN_RX0_IRQHandler(void)
+__attribute__((externally_visible)) void USB_LP_CAN1_RX0_IRQHandler(void)
 {
   USB_Istr();
 }
