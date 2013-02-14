@@ -25,7 +25,7 @@ void* _sbrk(int incr)
 	}
 	prev_heap_end = heap_end;
 	if((((uint32_t)heap_end) + ((uint32_t)incr))
-			> ((uint32_t)__StackLimit)) // stack protection
+			> ((uint32_t)&__StackLimit)) // stack protection
 	{
 		errno = ENOMEM;
 		return (void*) -1;

@@ -4551,7 +4551,7 @@ OUTPUT(main.elf elf32-littlearm)
  .debug_macro   0x00010a18      0x250 usart.o
  .debug_macro   0x00010c68      0x106 watchdog.o
 
-.debug_line     0x00000000     0xc571
+.debug_line     0x00000000     0xc56e
  .debug_line    0x00000000      0x56d Sensors/amb_sensors.o
  .debug_line    0x0000056d      0x837 Util/USB/hw_config.o
  .debug_line    0x00000da4      0x799 Util/USB/mass_mal.o
@@ -4583,18 +4583,18 @@ OUTPUT(main.elf elf32-littlearm)
  .debug_line    0x00009ed6       0x8c lib/startup_ARMCM3.o
  .debug_line    0x00009f62      0xae9 main.o
  .debug_line    0x0000aa4b      0x55c pwr.o
- .debug_line    0x0000afa7      0x2e0 syscalls.o
- .debug_line    0x0000b287      0x591 usart.o
- .debug_line    0x0000b818      0x2cb watchdog.o
- .debug_line    0x0000bae3      0x211 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_addsubdf3.o)
- .debug_line    0x0000bcf4      0x22d /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_muldivdf3.o)
- .debug_line    0x0000bf21      0x113 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_cmpdf2.o)
- .debug_line    0x0000c034       0xa1 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_truncdfsf2.o)
- .debug_line    0x0000c0d5      0x12f /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_addsubsf3.o)
- .debug_line    0x0000c204      0x150 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_muldivsf3.o)
- .debug_line    0x0000c354      0x107 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_cmpsf2.o)
- .debug_line    0x0000c45b       0x8d /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_fixsfsi.o)
- .debug_line    0x0000c4e8       0x89 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_fixunssfsi.o)
+ .debug_line    0x0000afa7      0x2dd syscalls.o
+ .debug_line    0x0000b284      0x591 usart.o
+ .debug_line    0x0000b815      0x2cb watchdog.o
+ .debug_line    0x0000bae0      0x211 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_addsubdf3.o)
+ .debug_line    0x0000bcf1      0x22d /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_muldivdf3.o)
+ .debug_line    0x0000bf1e      0x113 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_cmpdf2.o)
+ .debug_line    0x0000c031       0xa1 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_truncdfsf2.o)
+ .debug_line    0x0000c0d2      0x12f /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_addsubsf3.o)
+ .debug_line    0x0000c201      0x150 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_muldivsf3.o)
+ .debug_line    0x0000c351      0x107 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_cmpsf2.o)
+ .debug_line    0x0000c458       0x8d /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_fixsfsi.o)
+ .debug_line    0x0000c4e5       0x89 /home/laurence/toolchain/lib/gcc/arm-none-eabi/4.7.2/thumb/armv7-m/libgcc.a(_arm_fixunssfsi.o)
 
 .debug_str      0x00000000    0x4d367
  .debug_str     0x00000000    0x43c62 Sensors/amb_sensors.o
