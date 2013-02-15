@@ -27,7 +27,7 @@ FRESULT write_wave_header(FIL* file, uint8_t number_channels, uint16_t sample_ra
 	*(uint16_t*)&(header.Byterate)=(sample_rate*bits_per_sample*number_channels)/8;
 	header.Blockalign[0]=(bits_per_sample*number_channels)/8;
 	header.Bitspersample[0]=bits_per_sample;
-	uint8_t bytes;
+	uint32_t bytes;
 	return f_write(file, &header, sizeof(header), &bytes);//Write the header to the file
 }
 
@@ -47,7 +47,7 @@ FRESULT write_wave_samples(FIL* file, uint8_t number_channels, uint8_t bits_per_
 	}
 	this_stuffer->index=offset_in_bits%8;	//The new bit overhang
 	this_stuffer->lastbyte=write_buffer[offset_in_bits/8];//The byte containing the overhanging data
-	uint8_t bytes;
+	uint32_t bytes;
 	return f_write(file, write_buffer, offset_in_bits/8, &bytes);
 }
 
@@ -58,7 +58,7 @@ FRESULT write_wave_samples(FIL* file, uint8_t number_channels, uint8_t bits_per_
   */		
 FRESULT wave_terminate(FIL* file) {
 	FRESULT res;
-	uint8_t b;
+	uint32_t b;
 	res=f_sync(file);			//Flush buffers
 	res|=f_truncate(file);			//Truncate the lenght - fix pre allocation
 	DWORD size=f_size(file);
