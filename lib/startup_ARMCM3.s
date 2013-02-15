@@ -37,7 +37,7 @@
 #ifdef __STACK_SIZE
     .equ    Stack_Size, __STACK_SIZE
 #else
-    .equ    Stack_Size, 0xc00
+    .equ    Stack_Size, 0xf00
 #endif
     .globl    __StackTop
     .globl    __StackLimit

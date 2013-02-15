@@ -35,15 +35,15 @@ void disable_pin() {
   * @retval None
   */
 void shutdown_filesystem(uint8_t reason, uint8_t file_flags) {
-	uint8_t c[25]={};
+	uint8_t c[25] = {};
 	if(reason==BUTTON_TURNOFF)
-		memcpy(c,"\r\nLogger turned off\r\n",21);
+		strncpy(c,"\r\nLogger turned off\r\n",sizeof(c));
 	else if(reason==USB_INSERTED)
-		memcpy(c,"\r\nUSB cable inserted\r\n",22);
+		strncpy(c,"\r\nUSB cable inserted\r\n",sizeof(c));
 	else
-		memcpy(c,"\r\nLow Battery\r\n",15);
+		strncpy(c,"\r\nLow Battery\r\n",sizeof(c));
 	if(file_flags&0x01) {
-		uint8_t a;
+		uint32_t a;
 		f_write(&FATFS_logfile,c,strlen(c),&a);	//Write the error to the file
 		f_sync(&FATFS_logfile);			//Flush buffers
 		f_truncate(&FATFS_logfile);		//Truncate the lenght - fix pre allocation
