@@ -402,10 +402,11 @@ void __str_print_char(char c) {
   * @retval None
   */
 void file_preallocation_control(FIL* file) {
-	if(f_size(file)-f_tell(file)<(PRE_SIZE/2)) {//More than half way through the pre-allocated area
+	if(f_size(file)-f_tell(file)<(PRE_SIZE/2)) {	//More than half way through the pre-allocated area
+		f_sync(file);				//Running a sync here minimizes risk of erranous data loss
 		DWORD size=f_tell(file);
-		f_lseek(file, f_size(file)+PRE_SIZE);//preallocate another PRE_SIZE
-		f_lseek(file, size);	//Seek back to where we were before
+		f_lseek(file, f_size(file)+PRE_SIZE);	//Preallocate another PRE_SIZE
+		f_lseek(file, size);			//Seek back to where we were before
 	}
 }
 

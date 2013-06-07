@@ -107,11 +107,11 @@ __attribute__((externally_visible)) void EXTI0_IRQHandler(void) {
 
 
 /**
-  * @brief  This function handles ADC1-2 interrupt requests.- Should only be from the analogu watchdog
+  * @brief  This function handles ADC1-2 interrupt requests.- Should only be from the analogue watchdog
   * @param  None
   * @retval None
   */
-__attribute__((externally_visible)) void ADC1_2_IRQHandler(void) {
+__attribute__((externally_visible)) void ADC_IRQHandler(void) {
 	if(ADC_GetITStatus(ADC2, ADC_IT_AWD))			//Analogue watchdog was triggered
 		Shutdown_System=LOW_BATTERY;			//Shutdown to save battery
 	ADC_ClearITPendingBit(ADC2, ADC_IT_EOC);
