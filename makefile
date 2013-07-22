@@ -4,7 +4,7 @@
 #DEVICE_TYPE = STM32F10X_LD
 #STARTUP_FILE = stm32f10x_ld
 DEVICE_TYPE = STM32F10X_MD
-STARTUP_FILE = ARMCM3
+STARTUP_FILE = stm32f10x_md
 #DEVICE_TYPE = STM32F10X_HD
 #STARTUP_FILE = stm32f10x_hd
 #DEVICE_TYPE = STM32F10X_CL
@@ -75,8 +75,8 @@ ARFLAGS = cr
 OBJCOPY = arm-none-eabi-objcopy
 OBJCOPYFLAGS = -O binary
 
-#STARTUP_OBJ = lib/CMSIS_CM3/startup/gcc/startup_$(STARTUP_FILE).o
-STARTUP_OBJ = lib/startup_$(STARTUP_FILE).o
+STARTUP_OBJ = lib/CMSIS_CM3/startup/gcc/startup_$(STARTUP_FILE).o
+#STARTUP_OBJ = lib/startup_$(STARTUP_FILE).o
 
 MAIN_OUT = main.elf
 MAIN_MAP = $(MAIN_OUT:%.elf=%.map)

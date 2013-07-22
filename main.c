@@ -47,7 +47,9 @@ int main(void)
 	uint32_t data_counter=0;			//used as data timestamp
 	uint8_t deadly_flashes=0,system_state=0,repetition_counter=0;
 	int16_t sensor_data, sensor_raw_data[3]={};	//used for handling data passed back from sensors
-	int16_t sfe_sensor_ref_buff[2][3],sfe_sensor_ref_buff_old[2][3];//used to detect and fix I2C bus lockup
+	int16_t sfe_sensor_ref_buff[2][3][3],sfe_sensor_ref_buff_old[2][3][3];//used to detect and fix I2C bus lockup
+	int16_t fore_sensor_ref_buff[2][3],fore_sensor_ref_buff_old[2][3];
+	uint8_t sensor_jam[2][4]={};			//used to detect a single jammed sensor
 	RTC_t RTC_time;
 	wave_stuffer Gyro_wav_stuffer={0,0},Accel_wav_stuffer={0,0};//Used to controlling wav file bit packing
 	SystemInit();					//Sets up the clk
@@ -272,8 +274,30 @@ int main(void)
 	while (1) {
 		if(!I2C1error.error && repetition_counter<4) {
 			Watchdog_Reset();		//Reset the watchdog each main loop iteration if everything looks ok
-			if(memcmp(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff)))//If data differs
-				repetition_counter=0;	//New data differs
+			if(memcmp(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff))) {//If data differs
+				//If the data differs, we may still have a problem with an individual sensor - so we need to check sensors individually
+				uint8_t jammed_sensor=0;
+				for(uint8_t n=0; n<2; n++) {//Loop through all 6 of the sparkfun sensors
+					for(uint8_t m=0; m<3; m++) {
+						if( !memcmp(sfe_sensor_ref_buff[n][m][0],sfe_sensor_ref_buff_old[n][m][0],6) )
+							sensor_jam[n][m+1]++;
+						else
+							sensor_jam[n][m+1]=0;
+						if( sensor_jam[n][m+1] >= 32 )
+							jammed_sensor=1;
+					}
+					if( !memcmp(fore_sensor_ref_buff[n][0],fore_sensor_ref_buff_old[n][0],6) )
+						sensor_jam[n][0]++;
+					else
+						sensor_jam[n][0]=0;
+					if( sensor_jam[n][0] >= 32 )
+						jammed_sensor=1;	
+				}
+				if(!jammed_sensor)
+					repetition_counter=0;	//Some data differed for each sensor over the past 32 samples - should always occur by chance
+				else
+					repetition_counter++;	//We have a stuck sensor - Incriment the timeout
+			}
 			else
 				repetition_counter++;	//Incriment the lockup detector
 			memcpy(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff_old));//Copy for reference
@@ -305,6 +329,7 @@ int main(void)
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
 			sensor_data=(int16_t)SampleFilter_get_1200(&LSM330_Accel_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
+			fore_sensor_ref_buff[0][n]=sensor_data;//store for sensor lockup detection
 		}
 		while(bytes_in_buff(&(forehead_buffer.gyro[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
 			for(uint8_t n=0;n<3;n++) {
@@ -317,6 +342,7 @@ int main(void)
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
 			sensor_data=(int16_t)SampleFilter_get_190(&LSM330_Gyro_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
+			fore_sensor_ref_buff[1][n]=sensor_data;//store for sensor lockup detection
 		}
 		Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.temp));//Retrive one sample of data
 		printf("%d,",*(int8_t*)&sensor_data);	//LSM sensor outputs a signed 8 bit temperature in degrees C
@@ -324,15 +350,17 @@ int main(void)
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].accel[n]));//Retrive one sample of data
 				printf("%d,",sensor_data);	//print the retreived data
-				sfe_sensor_ref_buff[m][n]=sensor_data;//Reference for lockup detection
+				sfe_sensor_ref_buff[m][0][n]=sensor_data;//Reference for lockup detection
 			}
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].gyro[n]));//Retrive one sample of data
 				printf("%d,",sensor_data);	//print the retreived data
+				sfe_sensor_ref_buff[m][1][n]=sensor_data;//Reference for lockup detection
 			}
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].magno[n]));//Retrive one sample of data
 				printf("%d,",sensor_data);	//print the retreived data
+				sfe_sensor_ref_buff[m][2][n]=sensor_data;//Reference for lockup detection
 			}
 			Get_From_Buffer((uint16_t*)&sensor_data,&(sfe_sensor_buffers[m].temp));//Retrive one sample of data
 			printf("%d,",sensor_data);
