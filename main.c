@@ -300,9 +300,11 @@ int main(void)
 			}
 			else
 				repetition_counter++;	//Incriment the lockup detector
-			memcpy(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff_old));//Copy for reference
+			memcpy(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff_old));//Copy sfe for reference
+			memcpy(fore_sensor_ref_buff,fore_sensor_ref_buff_old,sizeof(fore_sensor_ref_buff_old));//Copy forehead for reference
 		}
 		else {
+			RED_LED_ON;			//Turn the red (error) LED on here to let us know there is a problem
 			do {
 				Sensors=0;		//Set this to zero to stop the systick firing off I2C1 writes
 				I2C1error.error=0;	//Reset both of these
@@ -312,8 +314,14 @@ int main(void)
 				sensors=detect_sensors(1);//Search for connected sensors - argument means the i2c data output buffers are not reinitialised
 				Delay(100000);
 				Sensors=sensors;
-			} while(Sensors !=0xFF);
+				if(Sensors !=0xFF) {	//If it didn't work the first time - call the preallocator to force a file sync, saving all data
+					file_preallocation_control(&FATFS_logfile);
+					file_preallocation_control(&FATFS_wavfile_accel);
+					file_preallocation_control(&FATFS_wavfile_gyro);
+				}
+			} while(Sensors !=0xFF);	//Loop forever if we dont find any sensors - watchdog will kill us in the end
 			Watchdog_Reset();
+			RED_LED_OFF;
 		}
 		while(!bytes_in_buff(&(forehead_buffer.temp)))	//Wait for some data - as all the sensor reads are aligned, can just use this one sensor
 			__WFI();			//Sleep until something arrives
