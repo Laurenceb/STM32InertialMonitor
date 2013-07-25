@@ -279,14 +279,14 @@ int main(void)
 				uint8_t jammed_sensor=0;
 				for(uint8_t n=0; n<2; n++) {//Loop through all 6 of the sparkfun sensors
 					for(uint8_t m=0; m<3; m++) {
-						if( !memcmp(sfe_sensor_ref_buff[n][m][0],sfe_sensor_ref_buff_old[n][m][0],6) )
+						if( !memcmp(&sfe_sensor_ref_buff[n][m][0],&sfe_sensor_ref_buff_old[n][m][0],6) )
 							sensor_jam[n][m+1]++;
 						else
 							sensor_jam[n][m+1]=0;
 						if( sensor_jam[n][m+1] >= 32 )
 							jammed_sensor=1;
 					}
-					if( !memcmp(fore_sensor_ref_buff[n][0],fore_sensor_ref_buff_old[n][0],6) )
+					if( !memcmp(&fore_sensor_ref_buff[n][0],&fore_sensor_ref_buff_old[n][0],6) )
 						sensor_jam[n][0]++;
 					else
 						sensor_jam[n][0]=0;
@@ -300,8 +300,8 @@ int main(void)
 			}
 			else
 				repetition_counter++;	//Incriment the lockup detector
-			memcpy(sfe_sensor_ref_buff,sfe_sensor_ref_buff_old,sizeof(sfe_sensor_ref_buff_old));//Copy sfe for reference
-			memcpy(fore_sensor_ref_buff,fore_sensor_ref_buff_old,sizeof(fore_sensor_ref_buff_old));//Copy forehead for reference
+			memcpy(sfe_sensor_ref_buff_old,sfe_sensor_ref_buff,sizeof(sfe_sensor_ref_buff_old));//Copy sfe for reference
+			memcpy(fore_sensor_ref_buff_old,fore_sensor_ref_buff,sizeof(fore_sensor_ref_buff_old));//Copy forehead for reference
 		}
 		else {
 			RED_LED_ON;			//Turn the red (error) LED on here to let us know there is a problem
@@ -315,9 +315,9 @@ int main(void)
 				Delay(100000);
 				Sensors=sensors;
 				if(Sensors !=0xFF) {	//If it didn't work the first time - call the preallocator to force a file sync, saving all data
-					file_preallocation_control(&FATFS_logfile);
-					file_preallocation_control(&FATFS_wavfile_accel);
-					file_preallocation_control(&FATFS_wavfile_gyro);
+					f_sync(&FATFS_logfile);
+					f_sync(&FATFS_wavfile_accel);
+					f_sync(&FATFS_wavfile_gyro);
 				}
 			} while(Sensors !=0xFF);	//Loop forever if we dont find any sensors - watchdog will kill us in the end
 			Watchdog_Reset();
