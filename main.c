@@ -87,6 +87,16 @@ int main(void)
 				switch_leds_on();	//Flash the LED(s)
 			else
 				switch_leds_off();
+			if(!(Millis%1000) && bDeviceState == SUSPENDED) {
+				CHRG_ON;
+				Delay(100);
+				if(!GET_CHRG_STATE) {
+					CHRG_OFF;
+					red_flash();
+					shutdown();
+				}					
+				CHRG_OFF;
+			}
 			Watchdog_Reset();
 			__WFI();			//Sleep until something arrives
 		}
