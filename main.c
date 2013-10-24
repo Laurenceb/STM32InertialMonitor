@@ -83,25 +83,24 @@ int main(void)
 		USB_Configured_LED();
 		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
 		uint32_t millis_local=0;
-		uint16_t time_total=1000;
+		uint16_t flash_cycle_time=1000;
 		while(1) {				//If running off USB (mounted as mass storage), stay in this loop - dont turn on anything
-			if((Millis-millis_local)%time_total<100) {//Only update during the initial LED flash - 100ms leeway to allow other tasks
-				uint8_t battery_flashes=0;
-				if(Battery_Voltage>3.97)	//20% bands derived from test of Farnell 1.3Ah lipo cell
-					battery_flashes=4;
+			if((Millis-millis_local)%flash_cycle_time<100) {//Only update during the initial LED flash - 100ms leeway to allow other tasks
+				flash_cycle_time=1000;
+				if(Battery_Voltage>3.97)//20% bands derived from test of Farnell 1.3Ah lipo cell
+					flash_cycle_time+=1000;
 				else if(Battery_Voltage>3.85)
-					battery_flashes=3;
+					flash_cycle_time+=750;
 				else if(Battery_Voltage>3.77)
-					battery_flashes=2;
+					flash_cycle_time+=500;
 				else if(Battery_Voltage>3.72)
-					battery_flashes=1;
-				time_total=1000+(uint16_t)battery_flashes*250;
+					flash_cycle_time+=250;
 				millis_local=Millis-100;//Store this to avoid running again for an entire cycle
 			}
-			uint16_t time_index=(Millis-millis_local)%time_total;//Index into our flash sequence in milliseconds
+			uint16_t time_index=(Millis-millis_local)%flash_cycle_time;//Index into our flash sequence in milliseconds
 			if(time_index<500)		//1Hz on/off flashing at zero charge, with extra trailing flashes as battery charges
 				switch_leds_on();	//Flash the LED(s)
-			else if((time_total-time_index)>=500 && ((time_index-500)%250)>125)//The leds are off for the last 500ms of the period
+			else if((flash_cycle_time-time_index)>=500 && ((time_index-500)%250)>125)//The leds are off for the last 500ms of the period
 				switch_leds_on();
 			else
 				switch_leds_off();
