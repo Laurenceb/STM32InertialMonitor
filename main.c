@@ -82,6 +82,7 @@ int main(void)
 		}
 		USB_Configured_LED();
 		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
+		ADC_Configuration();			//Only enables the Battery voltage monitoring
 		uint32_t millis_local=0;
 		uint16_t flash_cycle_time=1000;
 		while(1) {				//If running off USB (mounted as mass storage), stay in this loop - dont turn on anything
