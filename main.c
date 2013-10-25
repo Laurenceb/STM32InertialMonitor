@@ -152,7 +152,7 @@ int main(void)
 		else if(!deadly_flashes){		//FATFS and the I2C initialised ok, try init the card, this also sets up the SPI1
 			if(!f_open(&FATFS_logfile,"time.txt",FA_OPEN_EXISTING | FA_READ | FA_WRITE)) {//Try and open a time file to get the system time
 				if(!f_stat((const TCHAR *)"time.txt",&FATFS_info)) {//Get file info
-					if(!FATFS_info.fsize) {//Empty file
+					if(FATFS_info.fsize<5) {//Empty file - note windoze sometimes saves files with a few bytes of???
 						RTC_time.year=(FATFS_info.fdate>>9)+1980;//populate the time struct (FAT start==1980, RTC.year==0)
 						RTC_time.month=(FATFS_info.fdate>>5)&0x000F;
 						RTC_time.mday=FATFS_info.fdate&0x001F;
