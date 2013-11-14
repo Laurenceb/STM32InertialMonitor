@@ -73,10 +73,12 @@ int main(void)
 		USB_Init();
 		uint32_t nojack=0x000FFFFF;		//Countdown timer - a few hundered ms of 0v on jack detect forces a shutdown
 		while (bDeviceState != CONFIGURED) {	//Wait for USB config - timeout causes shutdown
-			if(Millis>10000 || !nojack)	//No USB cable - shutdown (Charger pin will be set to open drain, cant be disabled without usb)
+			if((Millis>10000 && bDeviceState == UNCONNECTED)|| !nojack)//No USB cable - shutdown (Charger pin will be set to open drain, cant be disabled without usb)
 				shutdown();
 			if(GET_CHRG_STATE)		//Jack detect resets the countdown
 				nojack=0x0FFFFF;
+			if (bDeviceState == SUSPENDED)
+				CHRG_ON;
 			nojack--;
 			Watchdog_Reset();		//Reset watchdog here, if we are stalled here the Millis timeout should catch us
 		}
