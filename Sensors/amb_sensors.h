@@ -39,6 +39,8 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define LSM_330_ACCEL_FIFO_SUB 0x2E
 #define LSM_330_ACCEL_FIFO_CONFIG {0x04,0x44}
 
+#define LSM_330DLC_GYRO_ADDR 0xD4				/*address for the newer DLC version, which is otherwise ~identical*/
+
 #define LSM_330_GYRO_ADDR 0xD2
 #define LSM_330_GYRO_DATA_BYTES (6*LSM330_GYRO_RAW_READS)
 #define LSM_330_GYRO_TEMP_BYTES 1

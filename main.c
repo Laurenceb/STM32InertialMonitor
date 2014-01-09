@@ -507,6 +507,19 @@ uint8_t detect_sensors(uint8_t noini) {
 		}
 		jobs_completed |= Completed_Jobs;
 	}
+	if(I2C1error.job == LSM330_GYRO_CONFIG_JOB) {	//Gyro address is also different on differing sensor cables
+		I2C_jobs[FOREHEAD_GYRO].address = LSM_330DLC_GYRO_ADDR;
+		I2C_jobs[LSM330_GYRO_CONFIG_JOB].address = LSM_330DLC_GYRO_ADDR;//Change the addresses on the forehead gyro to the LSM330DLC sensor address
+		I2C_jobs[FOREHEAD_TEMP].address = LSM_330DLC_GYRO_ADDR;
+		Sensor_Cable+=0x02;			//This cable id functionality could be extended if future adding i2c EEPROM for example
+		I2C1_Request_Job(LSM330_GYRO_CONFIG_JOB);
+		millis=Millis;
+		while(Jobs) {				//Wait for completion
+			if(Millis>(millis+20))
+				return 0;
+		}
+		jobs_completed |= Completed_Jobs;
+	}
 	while(I2C1->CR1 & 0x0300);			//Wait for stop/start bits to clear
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
 	asm volatile ("dmb" ::: "memory");
