@@ -294,9 +294,9 @@ void I2C_Config() {			//Configure I2C1 for the sensor bus
 	GPIO_InitTypeDef	GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init( GPIOB, &GPIO_InitStructure );//Configure the pins as output open drain so we can clk them as GPIO
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_SetBits(GPIOB,I2C1_SCL|I2C1_SDA|I2C1_SCL_RE|I2C1_SDA_RE);//Set bus high
+	GPIO_Init( GPIOB, &GPIO_InitStructure );//Configure the pins as output open drain so we can clk them as GPIO
 	//Make sure the bus is free by clocking it until any slaves release the line - 8 clocks
 	for(uint8_t n=0;n<8;n++) {
         	/* Wait for any clock stretching to finish - this has a timeout of 2.55ms*/

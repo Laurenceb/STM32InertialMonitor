@@ -4375,7 +4375,7 @@ OUTPUT(main.elf elf32-littlearm)
  .comment       0x00000000       0x71 lib/STM32_USB-FS-Device_Driver/libstm32usb.a(usb_regs.o)
  .comment       0x00000000       0x71 lib/STM32_USB-FS-Device_Driver/libstm32usb.a(usb_sil.o)
 
-.debug_info     0x00000000    0x16927
+.debug_info     0x00000000    0x16928
  .debug_info    0x00000000      0xac9 Sensors/amb_sensors.o
  .debug_info    0x00000ac9      0x8f2 Util/USB/hw_config.o
  .debug_info    0x000013bb      0x544 Util/USB/mass_mal.o
@@ -4401,15 +4401,15 @@ OUTPUT(main.elf elf32-littlearm)
  .debug_info    0x0000ed0d      0x7ea Util/wave.o
  .debug_info    0x0000f4f7      0x863 adc.o
  .debug_info    0x0000fd5a      0x5ab gpio.o
- .debug_info    0x00010305     0x1119 i2c_int.o
- .debug_info    0x0001141e      0xf5d interrupts.o
- .debug_info    0x0001237b       0x80 lib/CMSIS_CM3/startup/gcc/startup_stm32f10x_md.o
- .debug_info    0x000123fb      0x2da lib/CMSIS_CM3/system_stm32f10x.o
- .debug_info    0x000126d5     0x2e0b main.o
- .debug_info    0x000154e0      0x6b0 pwr.o
- .debug_info    0x00015b90      0x571 syscalls.o
- .debug_info    0x00016101      0x643 usart.o
- .debug_info    0x00016744      0x1e3 watchdog.o
+ .debug_info    0x00010305     0x111a i2c_int.o
+ .debug_info    0x0001141f      0xf5d interrupts.o
+ .debug_info    0x0001237c       0x80 lib/CMSIS_CM3/startup/gcc/startup_stm32f10x_md.o
+ .debug_info    0x000123fc      0x2da lib/CMSIS_CM3/system_stm32f10x.o
+ .debug_info    0x000126d6     0x2e0b main.o
+ .debug_info    0x000154e1      0x6b0 pwr.o
+ .debug_info    0x00015b91      0x571 syscalls.o
+ .debug_info    0x00016102      0x643 usart.o
+ .debug_info    0x00016745      0x1e3 watchdog.o
 
 .debug_abbrev   0x00000000     0x3f40
  .debug_abbrev  0x00000000      0x163 Sensors/amb_sensors.o
@@ -4700,7 +4700,7 @@ OUTPUT(main.elf elf32-littlearm)
  .debug_macro   0x00010f68      0x255 usart.o
  .debug_macro   0x000111bd      0x146 watchdog.o
 
-.debug_line     0x00000000     0xde3e
+.debug_line     0x00000000     0xde47
  .debug_line    0x00000000      0x5f2 Sensors/amb_sensors.o
  .debug_line    0x000005f2      0x998 Util/USB/hw_config.o
  .debug_line    0x00000f8a      0x811 Util/USB/mass_mal.o
@@ -4726,15 +4726,15 @@ OUTPUT(main.elf elf32-littlearm)
  .debug_line    0x000098d6      0x348 Util/wave.o
  .debug_line    0x00009c1e      0x736 adc.o
  .debug_line    0x0000a354      0x639 gpio.o
- .debug_line    0x0000a98d      0x7c9 i2c_int.o
- .debug_line    0x0000b156      0x7c0 interrupts.o
- .debug_line    0x0000b916       0x8b lib/CMSIS_CM3/startup/gcc/startup_stm32f10x_md.o
- .debug_line    0x0000b9a1      0x482 lib/CMSIS_CM3/system_stm32f10x.o
- .debug_line    0x0000be23      0xc73 main.o
- .debug_line    0x0000ca96      0x5e6 pwr.o
- .debug_line    0x0000d07c      0x368 syscalls.o
- .debug_line    0x0000d3e4      0x610 usart.o
- .debug_line    0x0000d9f4      0x44a watchdog.o
+ .debug_line    0x0000a98d      0x7d2 i2c_int.o
+ .debug_line    0x0000b15f      0x7c0 interrupts.o
+ .debug_line    0x0000b91f       0x8b lib/CMSIS_CM3/startup/gcc/startup_stm32f10x_md.o
+ .debug_line    0x0000b9aa      0x482 lib/CMSIS_CM3/system_stm32f10x.o
+ .debug_line    0x0000be2c      0xc73 main.o
+ .debug_line    0x0000ca9f      0x5e6 pwr.o
+ .debug_line    0x0000d085      0x368 syscalls.o
+ .debug_line    0x0000d3ed      0x610 usart.o
+ .debug_line    0x0000d9fd      0x44a watchdog.o
 
 .debug_str      0x00000000    0x4d4b7
  .debug_str     0x00000000    0x43d35 Sensors/amb_sensors.o
