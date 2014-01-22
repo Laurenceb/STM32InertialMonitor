@@ -19,7 +19,7 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 
 #define SECOND_BUS_READS (uint32_t)((1<<SFE_2_ACCEL)|(1<<SFE_2_MAGNO)|(1<<SFE_2_GYRO))
 #define FIRST_BUS_READS (uint32_t)((1<<SFE_1_ACCEL)|(1<<SFE_1_MAGNO)|(1<<SFE_1_GYRO)|(1<<FOREHEAD_TEMP))
-#define FOREHEAD_READS (uint32_t)((1<<FOREHEAD_ACCEL)|(1<<FOREHEAD_ACCEL_FIFO)|(1<<FOREHEAD_GYRO))
+#define FOREHEAD_READS (uint32_t)((1<<FOREHEAD_ACCEL)/*|(1<<FOREHEAD_ACCEL_FIFO)*/|(1<<FOREHEAD_GYRO))
 #define SCHEDULE_CONFIG_FIRST_BUS (uint32_t)((1<<LSM330_ACCEL_CONFIG_JOB)|(1<<LSM330_ACCEL_FIFO_JOB)|(1<<LSM330_GYRO_CONFIG_JOB)|\
 				(1<<ADXL_CONFIG_JOB)|(1<<HMC_CONFIG_JOB)|(1<<ITG3200_CONFIG_JOB))
 #define SCHEDULE_CONFIG_SECOND_BUS (uint32_t)((1<<ADXL_CONFIG_JOB)|(1<<HMC_CONFIG_JOB)|(1<<ITG3200_CONFIG_JOB))
@@ -27,7 +27,7 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define LAST_JOB ITG3200_CONFIG_JOB
 
 #define LSM330_GYRO_RAW_READS	1
-#define LSM330_ACCEL_RAW_READS  5
+#define LSM330_ACCEL_RAW_READS  7
 
 //All the sfe sensors are configured for 100Hz data output
 
@@ -37,7 +37,7 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define LSM_330_ACCEL_CONFIG_SUB 0xA0
 #define LSM_330_ACCEL_CONFIG {0x97,0x00,0x00,0x38,0x40,0x00}	/*normal mode with 1344 sps and 150hz bandwidth, +-16G*/
 #define LSM_330_ACCEL_FIFO_SUB 0x2E
-#define LSM_330_ACCEL_FIFO_CONFIG {0x04,0x44}
+#define LSM_330_ACCEL_FIFO_CONFIG {0x00,0x86}			/*this will overwrite the 0x2E register, toggling FIFO off/on, & setting 6+1=7 depth*/
 
 #define LSM_330DLC_GYRO_ADDR 0xD4				/*address for the newer DLC version, which is otherwise ~identical*/
 
@@ -88,14 +88,14 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 }
 
 #define LSM330_GYRO_RAW_SAMPLE_RATE 200   /* Sampling rates in samples per second */
-#define LSM330_ACCEL_RAW_SAMPLE_RATE 1200 /* These are rounded up to the nearest 10hz interval */
+#define LSM330_ACCEL_RAW_SAMPLE_RATE 1400 /* These are rounded up to the nearest 10hz interval */
 
 extern I2C_Job_Type I2C_jobs[];
 
 extern volatile uint8_t I2C_Transactions_State;
 
 extern volatile uint8_t Rawdata[8][8];
-extern volatile uint8_t RawFifo[30];
+extern volatile uint8_t RawFifo[6*LSM330_ACCEL_RAW_READS];
 extern int16_t LastFifo[3];
 
 extern SampleFilter	LSM330_Accel_Filter[3],LSM330_Gyro_Filter[3];

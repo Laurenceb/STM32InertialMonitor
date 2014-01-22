@@ -138,12 +138,12 @@ void I2C1_EV_IRQHandler(void) {
 		Jobs&=~(0x00000001<<job);	//tick off current job as complete
 		//Completion Tasks go here
 		if(job==FOREHEAD_ACCEL) {	//Forehead accel is read multiple times
-			for(uint8_t n=0;n<3;n++) {//We interpolate an extra sample here to fill the gap where accel fifo was being read
+			/*for(uint8_t n=0;n<3;n++) {//We interpolate an extra sample here to fill the gap where accel fifo was being read
 				int32_t interpolated=(*(int16_t*)&(RawFifo[2*n]))+LastFifo[n];
 				interpolated>>=1;
 				Add_To_Buffer(*(uint16_t*)&interpolated,&(forehead_buffer.accel[n]));
 				LastFifo[n]=*(int16_t*)&(RawFifo[(2*n)+((LSM330_ACCEL_RAW_READS-1)*6)]);//Store the current values
-			}
+			}*/
 			for(uint8_t m=0;m<LSM330_ACCEL_RAW_READS;m++) {
 				//Add the data to the buffer from here
 				for(uint8_t n=0;n<3;n++)

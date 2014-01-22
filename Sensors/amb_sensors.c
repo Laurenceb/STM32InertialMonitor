@@ -3,7 +3,7 @@
 #include "../main.h"
 
 volatile uint8_t Rawdata[8][8];			//This is an array for 6 sensors + Gyro data/temp, each one having up to 8 (4*16bit) bytes of data per sample
-volatile uint8_t RawFifo[30];			//For the forehead Accel
+volatile uint8_t RawFifo[6*LSM330_ACCEL_RAW_READS];//For the forehead Accel
 int16_t LastFifo[3];				//Stores previous data for interpolation
 
 const uint8_t LSM_330_ACCEL_config[]=LSM_330_ACCEL_CONFIG;//Config arrays for the sensors

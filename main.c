@@ -121,8 +121,8 @@ int main(void)
 			__WFI();			//Sleep until something arrives
 		}
 	}
-	else {
-		if(!GET_PWR_STATE)			//Check here to make sure the power button is still pressed, if not, sleep
+	else {	//Check here to make sure the power button is still pressed, if not, sleep if no debug
+		if(!GET_PWR_STATE &&  !(CoreDebug->DHCSR&0x00000001))
 			shutdown();			//This means a glitch on the supply line, or a power glitch results in sleep
 		EXTI_ONOFF_EN();			//Enable the off interrupt - allow some time for debouncing
 		ADC_Configuration();			//At present this is purely here to detect low battery
