@@ -1,7 +1,7 @@
 #pragma once
 #include "../Util/buffer.h"
 #include "../i2c_int.h"
-#include "../Util/filter_1200.h"
+#include "../Util/filter_1400.h"
 #include "../Util/filter_190.h"
 
 typedef struct{
@@ -14,7 +14,7 @@ typedef struct{
 
 enum{FOREHEAD_ACCEL=0,FOREHEAD_ACCEL_FIFO,FOREHEAD_GYRO,SFE_1_ACCEL,SFE_1_MAGNO,SFE_1_GYRO,FOREHEAD_TEMP,SFE_2_ACCEL,\
 SFE_2_MAGNO,SFE_2_GYRO};//sensor enums for sensor detect
-enum{LSM330_ACCEL_CONFIG_JOB=SFE_2_GYRO+1,LSM330_ACCEL_FIFO_JOB,LSM330_GYRO_CONFIG_JOB,\
+enum{LSM330_ACCEL_FIFO_JOB=SFE_2_GYRO+1,LSM330_ACCEL_CONFIG_JOB,LSM330_GYRO_CONFIG_JOB,\
 ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c driver
 
 #define SECOND_BUS_READS (uint32_t)((1<<SFE_2_ACCEL)|(1<<SFE_2_MAGNO)|(1<<SFE_2_GYRO))
@@ -35,9 +35,9 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 #define LSM_330_ACCEL_DATA_BYTES (6*LSM330_ACCEL_RAW_READS)
 #define LSM_330_ACCEL_DATA_SUB 0xA8
 #define LSM_330_ACCEL_CONFIG_SUB 0xA0
-#define LSM_330_ACCEL_CONFIG {0x97,0x00,0x00,0x38,0x40,0x00}	/*normal mode with 1344 sps and 150hz bandwidth, +-16G*/
+#define LSM_330_ACCEL_CONFIG {0x97,0x00,0x00,0xB8,0x40,0x00}	/*normal mode with 1344 sps and 150hz bandwidth, block update and +-16G*/
 #define LSM_330_ACCEL_FIFO_SUB 0x2E
-#define LSM_330_ACCEL_FIFO_CONFIG {0x00,0x86}			/*this will overwrite the 0x2E register, toggling FIFO off/on, & setting 6+1=7 depth*/
+#define LSM_330_ACCEL_FIFO_CONFIG {0x00,0x86}			/*this will overwrite the 0x2E register, toggling stream off/on, & setting 6+1=7 depth*/
 
 #define LSM_330DLC_GYRO_ADDR 0xD4				/*address for the newer DLC version, which is otherwise ~identical*/
 
@@ -79,8 +79,8 @@ ADXL_CONFIG_JOB,HMC_CONFIG_JOB,ITG3200_CONFIG_JOB};//config job numbers for i2c 
 {HMC_ADDR,		I2C_Direction_Receiver,	HMC_DATA_BYTES,			HMC_DATA_SUB,		NULL}, \
 {ITG3200_ADDR,		I2C_Direction_Receiver,	ITG3200_DATA_BYTES,		ITG3200_DATA_SUB,	NULL}, \
 				/*Device configuration*/\
-{LSM_330_ACCEL_ADDR,	I2C_Direction_Transmitter,	sizeof(LSM_330_ACCEL_config),	LSM_330_ACCEL_CONFIG_SUB,	LSM_330_ACCEL_config}, \
 {LSM_330_ACCEL_ADDR,	I2C_Direction_Transmitter,	sizeof(LSM_330_ACCEL_FIFO_config),LSM_330_ACCEL_FIFO_SUB,	LSM_330_ACCEL_FIFO_config}, \
+{LSM_330_ACCEL_ADDR,	I2C_Direction_Transmitter,	sizeof(LSM_330_ACCEL_config),	LSM_330_ACCEL_CONFIG_SUB,	LSM_330_ACCEL_config}, \
 {LSM_330_GYRO_ADDR,	I2C_Direction_Transmitter,	sizeof(LSM_330_GYRO_config),	LSM_330_GYRO_CONFIG_SUB,	LSM_330_GYRO_config}, \
 {ADXL_ADDR,		I2C_Direction_Transmitter,	sizeof(ADXL_config),		ADXL_CONFIG_SUB,		ADXL_config}, \
 {HMC_ADDR,		I2C_Direction_Transmitter,	sizeof(HMC_config),		HMC_CONFIG_SUB,			HMC_config}, \

@@ -86,3 +86,4 @@ float SampleFilter_get_1200(SampleFilter* f) {
   };
   return acc;
 }
+

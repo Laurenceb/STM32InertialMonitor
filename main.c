@@ -12,7 +12,7 @@
 #include "Sensors/amb_sensors.h"
 #include "usb_lib.h"
 #include "Util/wave.h"
-#include "Util/filter_1200.h"
+#include "Util/filter_1400.h"
 #include "Util/filter_190.h"
 #include "Util/USB/hw_config.h"
 #include "Util/USB/usb_pwr.h"
@@ -359,13 +359,13 @@ int main(void)
 		while(bytes_in_buff(&(forehead_buffer.accel[0]))) {//need to loop here and try to grab all the data, as it is sampled faster than 100Hz
 			for(uint8_t n=0;n<3;n++) {
 				Get_From_Buffer((uint16_t*)&sensor_data,&(forehead_buffer.accel[n]));//Retrive one sample of data
-				SampleFilter_put_1200(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
+				SampleFilter_put_1400(&LSM330_Accel_Filter[n],(float)sensor_data);//Dump into the low pass filter
 				sensor_raw_data[n]=sensor_data;
 			}
 			write_wave_samples(&FATFS_wavfile_accel, 3, 16, &Accel_wav_stuffer,(uint16_t*)sensor_raw_data);//Put the raw data into the wav file
 		}
 		for(uint8_t n=0;n<3;n++) {		//Grab the 100Sps downsampled gyro data from the three individual axis filters
-			sensor_data=(int16_t)SampleFilter_get_1200(&LSM330_Accel_Filter[n]);
+			sensor_data=(int16_t)SampleFilter_get_1400(&LSM330_Accel_Filter[n]);
 			printf("%d,",sensor_data);	//print the retreived data
 			fore_sensor_ref_buff[0][n]=sensor_data;//store for sensor lockup detection
 		}

@@ -39,7 +39,7 @@ void Allocate_Sensor_Buffers(uint8_t samples){
 		init_buffer(&(forehead_buffer.accel[n]),(samples*LSM330_ACCEL_RAW_SAMPLE_RATE)/100);
 		init_buffer(&(forehead_buffer.gyro[n]),(samples*LSM330_GYRO_RAW_SAMPLE_RATE)/100);//Use extra samples here to accomodate the higher sampling rate
 		SampleFilter_init_190(&LSM330_Gyro_Filter[n]);//Also initialise the downsampling filters for the Accel and gyro on the LSM330
-		SampleFilter_init_1200(&LSM330_Accel_Filter[n]);
+		SampleFilter_init_1400(&LSM330_Accel_Filter[n]);
 	}
 }
 
